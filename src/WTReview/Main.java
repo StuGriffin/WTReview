@@ -13,7 +13,7 @@ public class Main extends Application {
     }
 
     @Override
-    public void start(Stage primaryStage) throws Exception{
+    public void start(Stage primaryStage) throws Exception {
         Parent root = FXMLLoader.load(getClass().getResource("View.fxml"));
         primaryStage.setTitle("JavaFX Welcome");
 
@@ -21,6 +21,7 @@ public class Main extends Application {
 
         primaryStage.setTitle("TT - WTReview");
         primaryStage.setScene(scene);
+
         primaryStage.show();
     }
 }
