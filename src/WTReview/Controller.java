@@ -1,7 +1,14 @@
 package WTReview;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.chart.ScatterChart;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.ListView;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -10,42 +17,98 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Controller {
+    XYChart.Series measuredSeries = new XYChart.Series();
+    XYChart.Series referenceSeries = new XYChart.Series();
     @FXML
-    private void handleButtonAction(ActionEvent event) {
+    private ListView<MeasurementFile> ui_mList;
+    @FXML
+    private ListView<MeasurementFile> ui_rList;
+    @FXML
+    private ScatterChart<Double, Double> ui_Graph;
+    private ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
+    private ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
+
+    @FXML
+    private void initialize() {
+        ui_mList.setItems(measuredData);
+        ui_rList.setItems(referenceData);
+
+        ui_Graph.getData().addAll(measuredSeries, referenceSeries);
+
+        ui_mList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<MeasurementFile>() {
+            @Override
+            public void changed(ObservableValue<? extends MeasurementFile> observable, MeasurementFile oldValue, MeasurementFile newValue) {
+                System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
+
+                if (newValue != null) {
+                    measuredSeries.getData().clear();
+                    Profile p = newValue.getProfile();
+                    for (int i = 0; i < p.getxValues().size(); i++) {
+                        measuredSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
+                    }
+                }
+            }
+        });
+
+        ui_rList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<MeasurementFile>() {
+            @Override
+            public void changed(ObservableValue<? extends MeasurementFile> observable, MeasurementFile oldValue, MeasurementFile newValue) {
+                System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
+
+                if (newValue != null) {
+                    referenceSeries.getData().clear();
+                    Profile p = newValue.getProfile();
+                    for (int i = 0; i < p.getxValues().size(); i++) {
+                        referenceSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
+                    }
+                }
+            }
+        });
+    }
+
+    @FXML
+    private void handleMAddButtonAction(ActionEvent event) {
+
         String mLong = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/mlong.csv";
         String mLat = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/mLat.csv";
         String mPDD = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/mPDD.csv";
 
-        ReadInProfiles(mLong);
-        ReadInProfiles(mLat);
-        ReadInProfiles(mPDD);
+        measuredData.add(ReadInProfiles(mLong));
+        measuredData.add(ReadInProfiles(mLat));
+        measuredData.add(ReadInProfiles(mPDD));
+    }
+
+    @FXML
+    private void handleRAddButtonAction(ActionEvent event) {
 
         String rLong = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/rlong.csv";
         String rLat = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/rLat.csv";
         String rPDD = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/rPDD.csv";
 
-        ReadInProfiles(rLong);
-        ReadInProfiles(rLat);
-        ReadInProfiles(rPDD);
+        referenceData.add(ReadInProfiles(rLong));
+        referenceData.add(ReadInProfiles(rLat));
+        referenceData.add(ReadInProfiles(rPDD));
     }
 
-    private void ReadInProfiles(String fullFilePath) {
+    private MeasurementFile ReadInProfiles(String fullFilePath) {
 
         Path path = Paths.get(fullFilePath);
 
         try (Scanner reader = new Scanner(path)) {
-
-            //reader.useDelimiter("\r|\n|\\*");
 
             Pattern headerPattern = Pattern.compile("\\*");
             Pattern dataPattern = Pattern.compile(",");
             int correctColumn = 2;
 
             // Skip first line which should contain data information.
-            String date = reader.nextLine();
+            reader.nextLine();
 
             // Check version number.
             double version = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]);
+            if (version != 1.1) {
+                // TODO cleanup error handling.
+                return null;
+            }
 
             // Read horizontal orientation flag.
             Boolean isLateral = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]) == 0;
@@ -61,8 +124,8 @@ public class Controller {
             Boolean isPDD = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]) == 1;
 
             // Skip 2 lines: blank and header.
-            String blankLine = reader.nextLine();
-            String headerLine = reader.nextLine();
+            reader.nextLine();
+            reader.nextLine();
 
             //Read Data
             ArrayList<MeasurementPoint> data = new ArrayList<>();
@@ -95,12 +158,19 @@ public class Controller {
                 data.add(point);
             }
 
+            MeasurementFile measurement = new MeasurementFile(path.getFileName(), isLateral, channels, isPDD, data);
+
             String successString = String.format("Read profile successfully: %s", fullFilePath);
             System.out.println(successString);
+
+            return measurement;
         } catch (Exception exception) {
             String errorString = String.format("Error during ReadInProfiles: %s", exception.toString());
             System.out.println(errorString);
         }
+
+        // TODO cleanup error handling.
+        return null;
     }
 }
 

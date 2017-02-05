@@ -17,7 +17,7 @@ public class Main extends Application {
         Parent root = FXMLLoader.load(getClass().getResource("View.fxml"));
         primaryStage.setTitle("JavaFX Welcome");
 
-        Scene scene = new Scene(root, 300, 275);
+        Scene scene = new Scene(root);
 
         primaryStage.setTitle("TT - WTReview");
         primaryStage.setScene(scene);
