@@ -45,6 +45,7 @@ public class Controller {
                 if (newValue != null) {
                     ui_Graph.getData().remove(measuredSeries);
                     measuredSeries = new XYChart.Series();
+                    measuredSeries.setName("Measured");
                     ui_Graph.getData().addAll(measuredSeries);
 
                     Profile p = newValue.getProfile();
@@ -63,6 +64,7 @@ public class Controller {
                 if (newValue != null) {
                     ui_Graph.getData().remove(referenceSeries);
                     referenceSeries = new XYChart.Series();
+                    referenceSeries.setName("Reference");
                     ui_Graph.getData().addAll(referenceSeries);
 
                     Profile p = newValue.getProfile();
