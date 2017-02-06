@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
-<?import javafx.scene.chart.ScatterChart?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
@@ -44,13 +44,13 @@
                   prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="1"/>
         <ListView fx:id="ui_rList" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
                   prefHeight="200.0" prefWidth="200.0" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-        <ScatterChart fx:id="ui_Graph" GridPane.columnIndex="2" GridPane.rowIndex="1">
+        <LineChart fx:id="ui_Graph" GridPane.columnIndex="2" GridPane.rowIndex="1">
             <xAxis>
                 <NumberAxis side="BOTTOM"/>
             </xAxis>
             <yAxis>
                 <NumberAxis side="LEFT"/>
             </yAxis>
-        </ScatterChart>
+        </LineChart>
     </children>
 </GridPane>

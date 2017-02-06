@@ -6,7 +6,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.chart.ScatterChart;
+import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.ListView;
 
@@ -17,14 +17,15 @@ import java.util.Scanner;
 import java.util.regex.Pattern;
 
 public class Controller {
-    XYChart.Series measuredSeries = new XYChart.Series();
-    XYChart.Series referenceSeries = new XYChart.Series();
+
     @FXML
     private ListView<MeasurementFile> ui_mList;
     @FXML
     private ListView<MeasurementFile> ui_rList;
     @FXML
-    private ScatterChart<Double, Double> ui_Graph;
+    private LineChart<Double, Double> ui_Graph;
+    private XYChart.Series measuredSeries;
+    private XYChart.Series referenceSeries;
     private ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
     private ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
 
@@ -33,7 +34,8 @@ public class Controller {
         ui_mList.setItems(measuredData);
         ui_rList.setItems(referenceData);
 
-        ui_Graph.getData().addAll(measuredSeries, referenceSeries);
+        ui_Graph.setCreateSymbols(false);
+        ui_Graph.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
 
         ui_mList.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<MeasurementFile>() {
             @Override
@@ -41,7 +43,10 @@ public class Controller {
                 System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
 
                 if (newValue != null) {
-                    measuredSeries.getData().clear();
+                    ui_Graph.getData().remove(measuredSeries);
+                    measuredSeries = new XYChart.Series();
+                    ui_Graph.getData().addAll(measuredSeries);
+
                     Profile p = newValue.getProfile();
                     for (int i = 0; i < p.getxValues().size(); i++) {
                         measuredSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
@@ -56,7 +61,10 @@ public class Controller {
                 System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
 
                 if (newValue != null) {
-                    referenceSeries.getData().clear();
+                    ui_Graph.getData().remove(referenceSeries);
+                    referenceSeries = new XYChart.Series();
+                    ui_Graph.getData().addAll(referenceSeries);
+
                     Profile p = newValue.getProfile();
                     for (int i = 0; i < p.getxValues().size(); i++) {
                         referenceSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
