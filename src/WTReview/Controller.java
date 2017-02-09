@@ -24,10 +24,15 @@ public class Controller {
     private ListView<MeasurementFile> ui_rList;
     @FXML
     private LineChart<Double, Double> ui_Graph;
+
     private XYChart.Series measuredSeries;
     private XYChart.Series referenceSeries;
+    private XYChart.Series gammaSeries;
     private ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
     private ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
+
+    private MeasurementFile currentReferenceProfile;
+    private MeasurementFile currentMeasuredProfile;
 
     @FXML
     private void initialize() {
@@ -49,9 +54,12 @@ public class Controller {
                     ui_Graph.getData().addAll(measuredSeries);
 
                     Profile p = newValue.getProfile();
+                    currentMeasuredProfile = newValue;
                     for (int i = 0; i < p.getxValues().size(); i++) {
                         measuredSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
                     }
+
+                    calcGamma();
                 }
             }
         });
@@ -68,9 +76,12 @@ public class Controller {
                     ui_Graph.getData().addAll(referenceSeries);
 
                     Profile p = newValue.getProfile();
+                    currentReferenceProfile = newValue;
                     for (int i = 0; i < p.getxValues().size(); i++) {
                         referenceSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
                     }
+
+                    calcGamma();
                 }
             }
         });
@@ -181,6 +192,42 @@ public class Controller {
 
         // TODO cleanup error handling.
         return null;
+    }
+
+    private void calcGamma() {
+        ui_Graph.getData().remove(gammaSeries);
+
+        if (currentReferenceProfile == null) {
+            return;
+        }
+
+        if (currentMeasuredProfile == null) {
+            return;
+        }
+
+        if (currentReferenceProfile.getOrientation() == ProfileOrientation.DepthDose || currentMeasuredProfile.getOrientation() == ProfileOrientation.DepthDose) {
+            return;
+        }
+
+        if (currentReferenceProfile.getOrientation() != currentMeasuredProfile.getOrientation()) {
+            return;
+        }
+
+        double distanceToAgreement = currentReferenceProfile.getOrientation() == ProfileOrientation.Lateral ? 1.0 : 0.1;
+
+        Profile gamma = GammaFunction.calcGamma(currentReferenceProfile.getProfile(), currentMeasuredProfile.getProfile(), distanceToAgreement, 0.02);
+
+        if (gamma == null) {
+            return;
+        }
+
+        gammaSeries = new XYChart.Series();
+        gammaSeries.setName("Gamma");
+        ui_Graph.getData().addAll(gammaSeries);
+
+        for (int i = 0; i < gamma.getxValues().size(); i++) {
+            gammaSeries.getData().add(new XYChart.Data(gamma.getxValues().get(i), gamma.getyValues().get(i)));
+        }
     }
 }
 
