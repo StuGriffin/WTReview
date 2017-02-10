@@ -33,7 +33,7 @@
                         <TilePane alignment="CENTER_LEFT" hgap="10.0" maxHeight="47.0" prefRows="1"
                                   GridPane.columnIndex="1" GridPane.rowIndex="1">
                             <children>
-                                <Button mnemonicParsing="false" onAction="#handleMAddButtonAction" text="+"/>
+                                <Button mnemonicParsing="false" onAction="#handleAddMeasuredButtonAction" text="+"/>
                                 <Button mnemonicParsing="false" text="-"/>
                                 <Button mnemonicParsing="false" text="^"/>
                                 <Button mnemonicParsing="false" text="v"/>
@@ -47,7 +47,7 @@
                         <TilePane alignment="CENTER_LEFT" hgap="10.0" maxHeight="47.0" prefRows="1"
                                   GridPane.rowIndex="1">
                             <children>
-                                <Button mnemonicParsing="false" onAction="#handleRAddButtonAction" text="+"/>
+                                <Button mnemonicParsing="false" onAction="#handleAddReferenceButtonAction" text="+"/>
                                 <Button mnemonicParsing="false" text="-"/>
                                 <Button mnemonicParsing="false" text="^"/>
                                 <Button mnemonicParsing="false" text="v"/>
@@ -58,16 +58,26 @@
                         </TilePane>
                     </children>
                 </GridPane>
-                <LineChart fx:id="ui_Graph" prefHeight="665.0" prefWidth="567.0">
-                    <xAxis>
-                        <NumberAxis side="BOTTOM"/>
-                    </xAxis>
-                    <yAxis>
-                        <NumberAxis side="LEFT"/>
-                    </yAxis>
-                </LineChart>
+                <AnchorPane fx:id="chartPane">
+                    <children>
+                        <LineChart fx:id="ui_Graph" prefHeight="665.0" prefWidth="567.0" AnchorPane.bottomAnchor="0.0"
+                                   AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                            <xAxis>
+                                <NumberAxis side="BOTTOM"/>
+                            </xAxis>
+                            <yAxis>
+                                <NumberAxis side="LEFT"/>
+                            </yAxis>
+                        </LineChart>
+                    </children>
+                </AnchorPane>
             </items>
         </SplitPane>
-        <TilePane prefHeight="200.0" prefWidth="200.0"/>
+        <TilePane alignment="CENTER_RIGHT" hgap="10.0" prefHeight="200.0" prefWidth="200.0">
+            <children>
+                <Button fx:id="zoomBtn" mnemonicParsing="false" text="Zoom"/>
+                <Button fx:id="resetBtn" mnemonicParsing="false" text="Reset"/>
+            </children>
+        </TilePane>
     </children>
 </GridPane>
