@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.chart.LineChart?>
-<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <GridPane xmlns:fx="http://javafx.com/fxml/1" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity"
-          minWidth="-Infinity" prefHeight="644.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/8.0.111"
+          minWidth="-Infinity" prefHeight="800.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/8.0.111"
           fx:controller="WTReview.Controller">
     <columnConstraints>
         <ColumnConstraints hgrow="SOMETIMES"/>
@@ -58,24 +57,45 @@
                         </TilePane>
                     </children>
                 </GridPane>
-                <AnchorPane fx:id="chartPane">
-                    <children>
-                        <LineChart fx:id="ui_Graph" prefHeight="665.0" prefWidth="567.0" AnchorPane.bottomAnchor="0.0"
-                                   AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                            <xAxis>
-                                <NumberAxis side="BOTTOM"/>
-                            </xAxis>
-                            <yAxis>
-                                <NumberAxis side="LEFT"/>
-                            </yAxis>
-                        </LineChart>
-                    </children>
-                </AnchorPane>
+                <SplitPane fx:id="ui_GraphDivider" dividerPositions="1.0" orientation="VERTICAL">
+                    <items>
+                        <AnchorPane fx:id="chartPane">
+                            <children>
+                                <LineChart fx:id="ui_ProfileGraph" prefHeight="665.0" prefWidth="567.0"
+                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                    <xAxis>
+                                        <NumberAxis label="Position (mm)" lowerBound="-100.0" side="BOTTOM"/>
+                                    </xAxis>
+                                    <yAxis>
+                                        <NumberAxis label="Relative Height / Gamma Value" side="LEFT" upperBound="1.0"/>
+                                    </yAxis>
+                                </LineChart>
+                            </children>
+                        </AnchorPane>
+                        <AnchorPane>
+                            <children>
+                                <LineChart fx:id="ui_AnalysisGraph" visible="false" AnchorPane.bottomAnchor="0.0"
+                                           AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                           AnchorPane.topAnchor="0.0">
+                                    <xAxis>
+                                        <NumberAxis label="Depth (mm)" side="BOTTOM" upperBound="200.0"/>
+                                    </xAxis>
+                                    <yAxis>
+                                        <NumberAxis autoRanging="false" forceZeroInRange="false"
+                                                    label="Ratio (Measured / Reference)" lowerBound="0.95" side="LEFT"
+                                                    tickUnit="0.01" upperBound="1.05"/>
+                                    </yAxis>
+                                </LineChart>
+                            </children>
+                        </AnchorPane>
+                    </items>
+                </SplitPane>
             </items>
         </SplitPane>
         <TilePane alignment="CENTER_RIGHT" hgap="10.0" prefHeight="200.0" prefWidth="200.0">
             <children>
-                <Button fx:id="zoomBtn" mnemonicParsing="false" text="Zoom"/>
+                <TextField fx:id="ui_coordinates"/>
                 <Button fx:id="resetBtn" mnemonicParsing="false" text="Reset"/>
             </children>
         </TilePane>
