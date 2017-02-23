@@ -1,3 +1,25 @@
+/*
+ * Copyright (c) 2017 S. Griffin
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 package WTReview;
 
 import javafx.beans.property.ObjectProperty;
@@ -12,7 +34,10 @@ import javafx.scene.Node;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ListView;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -39,8 +64,6 @@ public class Controller {
     private VBox chartPane;
     @FXML
     private Button resetBtn;
-    @FXML
-    private TextField ui_coordinates;
     @FXML
     private TextArea ui_ResultsTable;
     @FXML
@@ -78,13 +101,13 @@ public class Controller {
         // Sync selection for the 2 data list views.
         ui_rList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
         {
-            if (ui_SyncLists.isSelected()) {
+            if (ui_SyncLists.isSelected() && newIndex.intValue() < measuredData.size()) {
                 ui_mList.getSelectionModel().clearAndSelect(newIndex.intValue());
             }
         });
         ui_mList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
         {
-            if (ui_SyncLists.isSelected()) {
+            if (ui_SyncLists.isSelected() && newIndex.intValue() < referenceData.size()) {
                 ui_rList.getSelectionModel().clearAndSelect(newIndex.intValue());
             }
         });
@@ -139,7 +162,7 @@ public class Controller {
         resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
 
         // TODO remove loading of test data.
-        LoadTestData();
+        //LoadTestData();
     }
 
     @FXML
@@ -374,34 +397,6 @@ public class Controller {
             rect.setWidth(width);
             rect.setHeight(height);
         });
-
-//        zoomingNode.setOnMouseMoved(event -> {
-//            Point2D pointInScene = new Point2D(event.getSceneX(), event.getSceneY());
-//            double mouseX = ui_ProfileGraph.sceneToLocal(pointInScene).getX();
-//            double mouseY = ui_ProfileGraph.sceneToLocal(pointInScene).getY();
-//
-//            double boundsX = ui_ProfileGraph.getBoundsInLocal().getMaxX();
-//            double boundsY = ui_ProfileGraph.getBoundsInLocal().getMaxY();
-//
-//            double maxX = Math.max(boundsX, mouseX);
-//            double maxY = Math.max(boundsY, mouseY);
-//
-//            ui_coordinates.setText(String.format("mx:%.2f, my:%.2f, bx:%.2f, by:%.2f", mouseX, mouseY, boundsX, boundsY));
-//        });
-
-//        zoomingNode.setOnMouseMoved(event -> {
-//            Point2D pointInScene = new Point2D(event.getSceneX(), event.getSceneY());
-//
-//            NumberAxis xAxis = (NumberAxis) ui_ProfileGraph.getXAxis();
-//            NumberAxis yAxis = (NumberAxis) ui_ProfileGraph.getYAxis();
-//
-//            double pointOnXAxis = xAxis.sceneToLocal(pointInScene).getX();
-//            double pointOnYAxis = yAxis.sceneToLocal(pointInScene).getY();
-//
-//            double xPosition = xAxis.getValueForDisplay(pointOnXAxis).doubleValue();
-//            double yPosition = yAxis.getValueForDisplay(pointOnYAxis).doubleValue();
-//            ui_coordinates.setText(String.format("x:%.2f, y:%.2f", xPosition, yPosition));
-//        });
 
         zoomingNode.setOnMouseReleased(event -> doZoom(rect, ui_ProfileGraph));
     }
