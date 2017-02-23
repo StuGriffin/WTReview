@@ -33,9 +33,9 @@
                                   GridPane.columnIndex="1" GridPane.rowIndex="1">
                             <children>
                                 <Button mnemonicParsing="false" onAction="#handleAddMeasuredButtonAction" text="+"/>
-                                <Button mnemonicParsing="false" text="-"/>
-                                <Button mnemonicParsing="false" text="^"/>
-                                <Button mnemonicParsing="false" text="v"/>
+                                <Button mnemonicParsing="false" onAction="#handleMeasuredDelete" text="-"/>
+                                <Button mnemonicParsing="false" onAction="#handleMeasuredMoveUp" text="^"/>
+                                <Button mnemonicParsing="false" onAction="#handleMeasuredMoveDown" text="v"/>
                             </children>
                             <padding>
                                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
@@ -47,9 +47,9 @@
                                   GridPane.rowIndex="1">
                             <children>
                                 <Button mnemonicParsing="false" onAction="#handleAddReferenceButtonAction" text="+"/>
-                                <Button mnemonicParsing="false" text="-"/>
-                                <Button mnemonicParsing="false" text="^"/>
-                                <Button mnemonicParsing="false" text="v"/>
+                                <Button mnemonicParsing="false" onAction="#handleReferenceDelete" text="-"/>
+                                <Button mnemonicParsing="false" onAction="#handleReferenceMoveUp" text="^"/>
+                                <Button mnemonicParsing="false" onAction="#handleReferenceMoveDown" text="v"/>
                             </children>
                             <padding>
                                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
@@ -57,46 +57,36 @@
                         </TilePane>
                     </children>
                 </GridPane>
-                <SplitPane fx:id="ui_GraphDivider" dividerPositions="1.0" orientation="VERTICAL">
-                    <items>
-                        <AnchorPane fx:id="chartPane">
-                            <children>
-                                <LineChart fx:id="ui_ProfileGraph" prefHeight="665.0" prefWidth="567.0"
-                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                    <xAxis>
-                                        <NumberAxis label="Position (mm)" lowerBound="-100.0" side="BOTTOM"/>
-                                    </xAxis>
-                                    <yAxis>
-                                        <NumberAxis label="Relative Height / Gamma Value" side="LEFT" upperBound="1.0"/>
-                                    </yAxis>
-                                </LineChart>
-                            </children>
-                        </AnchorPane>
-                        <AnchorPane>
-                            <children>
-                                <LineChart fx:id="ui_AnalysisGraph" visible="false" AnchorPane.bottomAnchor="0.0"
-                                           AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
-                                           AnchorPane.topAnchor="0.0">
-                                    <xAxis>
-                                        <NumberAxis label="Depth (mm)" side="BOTTOM" upperBound="200.0"/>
-                                    </xAxis>
-                                    <yAxis>
-                                        <NumberAxis autoRanging="false" forceZeroInRange="false"
-                                                    label="Ratio (Measured / Reference)" lowerBound="0.95" side="LEFT"
-                                                    tickUnit="0.01" upperBound="1.05"/>
-                                    </yAxis>
-                                </LineChart>
-                            </children>
-                        </AnchorPane>
-                    </items>
-                </SplitPane>
+                <VBox fx:id="chartPane" alignment="TOP_CENTER">
+                    <children>
+                        <TextArea fx:id="ui_ResultsTable" editable="false"/>
+                        <LineChart fx:id="ui_ProfileGraph" legendSide="RIGHT" prefHeight="10000.0">
+                            <xAxis>
+                                <NumberAxis label="Position (mm)" lowerBound="-100.0" side="BOTTOM"/>
+                            </xAxis>
+                            <yAxis>
+                                <NumberAxis label="Relative Height / Gamma Value" side="LEFT" upperBound="1.0"/>
+                            </yAxis>
+                        </LineChart>
+                        <LineChart fx:id="ui_AnalysisGraph" legendSide="RIGHT" prefHeight="10000.0">
+                            <xAxis>
+                                <NumberAxis label="Depth (mm)" side="BOTTOM" upperBound="200.0"/>
+                            </xAxis>
+                            <yAxis>
+                                <NumberAxis autoRanging="false" forceZeroInRange="false"
+                                            label="Ratio (Measured / Reference)" lowerBound="0.95" side="LEFT"
+                                            tickUnit="0.01" upperBound="1.05"/>
+                            </yAxis>
+                        </LineChart>
+                    </children>
+                </VBox>
             </items>
         </SplitPane>
         <TilePane alignment="CENTER_RIGHT" hgap="10.0" prefHeight="200.0" prefWidth="200.0">
             <children>
-                <TextField fx:id="ui_coordinates"/>
-                <Button fx:id="resetBtn" mnemonicParsing="false" text="Reset"/>
+                <RadioButton fx:id="ui_SyncLists" mnemonicParsing="false" text="Sync?"/>
+                <TextField fx:id="ui_coordinates" prefHeight="27.0" prefWidth="383.0"/>
+                <Button fx:id="resetBtn" mnemonicParsing="false" text="Reset Zoom"/>
             </children>
         </TilePane>
     </children>

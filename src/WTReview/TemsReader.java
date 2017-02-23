@@ -1,0 +1,92 @@
+package WTReview;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Scanner;
+import java.util.regex.Pattern;
+
+public class TemsReader {
+    public static MeasurementFile ReadInProfiles(String fullFilePath) {
+
+        Path path = Paths.get(fullFilePath);
+
+        try (Scanner reader = new Scanner(path)) {
+
+            Pattern headerPattern = Pattern.compile("\\*");
+            Pattern dataPattern = Pattern.compile(",");
+            int correctColumn = 2;
+
+            // Skip first line which should contain data information.
+            reader.nextLine();
+
+            // Check version number.
+            double version = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]);
+            if (version != 1.1) {
+                // TODO cleanup error handling.
+                return null;
+            }
+
+            // Read horizontal orientation flag.
+            Boolean isLateral = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]) == 0;
+
+            // Read enabled channels.
+            char[] rawChannels = headerPattern.split(reader.nextLine())[correctColumn].toCharArray();
+            Boolean[] channels = new Boolean[8];
+            for (int i = 0; i < 8; i++) {
+                channels[i] = rawChannels[i] == '1';
+            }
+
+            // Read PDD Flag.
+            Boolean isPDD = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]) == 1;
+
+            // Skip 2 lines: blank and header.
+            reader.nextLine();
+            reader.nextLine();
+
+            //Read Data
+            ArrayList<MeasurementPoint> data = new ArrayList<>();
+            while (reader.hasNextLine()) {
+                String[] rawData = dataPattern.split(reader.nextLine());
+
+                ArrayList<Double> numData = new ArrayList<>();
+                for (String aRawData : rawData) {
+                    try {
+                        numData.add(Double.parseDouble(aRawData));
+                    } catch (NumberFormatException exception) {
+                        numData.add(Double.NaN);
+                    }
+                }
+
+                MeasurementPoint point = new MeasurementPoint(
+                        numData.get(0),
+                        numData.get(1),
+                        numData.get(2),
+                        numData.get(3),
+                        numData.get(4),
+                        numData.get(5),
+                        numData.get(6),
+                        numData.get(7),
+                        numData.get(8),
+                        numData.get(9),
+                        numData.get(10),
+                        numData.get(11));
+
+                data.add(point);
+            }
+
+            MeasurementFile measurement = new MeasurementFile(path.getFileName(), isLateral, channels, isPDD, data);
+
+            String successString = String.format("Read profile successfully: %s", fullFilePath);
+            System.out.println(successString);
+
+            return measurement;
+        } catch (Exception exception) {
+            String errorString = String.format("Error during ReadInProfiles: %s", exception.toString());
+            System.out.println(errorString);
+        }
+
+        // TODO cleanup error handling.
+        return null;
+    }
+}
