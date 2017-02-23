@@ -52,6 +52,8 @@ import java.util.List;
 public class Controller {
 
     private final FileChooser fileChooser = new FileChooser();
+    private final ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
+    private final ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
     @FXML
     private ListView<MeasurementFile> ui_mList;
     @FXML
@@ -68,13 +70,10 @@ public class Controller {
     private TextArea ui_ResultsTable;
     @FXML
     private RadioButton ui_SyncLists;
-
-    private XYChart.Series measuredSeries;
-    private XYChart.Series referenceSeries;
-    private XYChart.Series gammaSeries;
-    private XYChart.Series ratioSeries;
-    private ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
-    private ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
+    private LineChart.Series<Number, Number> measuredSeries;
+    private LineChart.Series<Number, Number> referenceSeries;
+    private LineChart.Series<Number, Number> gammaSeries;
+    private LineChart.Series<Number, Number> ratioSeries;
     private MeasurementFile currentReferenceProfile;
     private MeasurementFile currentMeasuredProfile;
 
@@ -120,13 +119,13 @@ public class Controller {
             currentMeasuredProfile = newValue;
 
             if (newValue != null) {
-                measuredSeries = new XYChart.Series();
+                measuredSeries = new XYChart.Series<>();
                 measuredSeries.setName("Measured");
-                ui_ProfileGraph.getData().addAll(measuredSeries);
+                ui_ProfileGraph.getData().add(measuredSeries);
 
                 Profile p = newValue.getProfile();
-                for (int i = 0; i < p.getxValues().size(); i++) {
-                    measuredSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
+                for (int i = 0; i < p.getX().size(); i++) {
+                    measuredSeries.getData().add(new XYChart.Data<>(p.getX().get(i), p.getY().get(i)));
                 }
             }
 
@@ -140,13 +139,13 @@ public class Controller {
             currentReferenceProfile = newValue;
 
             if (newValue != null) {
-                referenceSeries = new XYChart.Series();
+                referenceSeries = new XYChart.Series<>();
                 referenceSeries.setName("Reference");
-                ui_ProfileGraph.getData().addAll(referenceSeries);
+                ui_ProfileGraph.getData().add(referenceSeries);
 
                 Profile p = newValue.getProfile();
-                for (int i = 0; i < p.getxValues().size(); i++) {
-                    referenceSeries.getData().add(new XYChart.Data(p.getxValues().get(i), p.getyValues().get(i)));
+                for (int i = 0; i < p.getX().size(); i++) {
+                    referenceSeries.getData().add(new XYChart.Data<>(p.getX().get(i), p.getY().get(i)));
                 }
             }
 
@@ -162,7 +161,7 @@ public class Controller {
         resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
 
         // TODO remove loading of test data.
-        //LoadTestData();
+        LoadTestData();
     }
 
     @FXML
@@ -212,7 +211,7 @@ public class Controller {
     }
 
     @FXML
-    private void handleReferenceMoveUp(ActionEvent event) {
+    private void handleReferenceMoveUp() {
         int selectedIndex = ui_rList.getSelectionModel().getSelectedIndex();
         if (selectedIndex > 0) {
             Collections.swap(referenceData, selectedIndex, selectedIndex - 1);
@@ -221,7 +220,7 @@ public class Controller {
     }
 
     @FXML
-    private void handleReferenceMoveDown(ActionEvent event) {
+    private void handleReferenceMoveDown() {
         int selectedIndex = ui_rList.getSelectionModel().getSelectedIndex();
         if (selectedIndex < referenceData.size() - 1) {
             Collections.swap(referenceData, selectedIndex, selectedIndex + 1);
@@ -230,7 +229,7 @@ public class Controller {
     }
 
     @FXML
-    private void handleMeasuredMoveUp(ActionEvent event) {
+    private void handleMeasuredMoveUp() {
         int selectedIndex = ui_mList.getSelectionModel().getSelectedIndex();
         if (selectedIndex > 0) {
             Collections.swap(measuredData, selectedIndex, selectedIndex - 1);
@@ -239,7 +238,7 @@ public class Controller {
     }
 
     @FXML
-    private void handleMeasuredMoveDown(ActionEvent event) {
+    private void handleMeasuredMoveDown() {
         int selectedIndex = ui_mList.getSelectionModel().getSelectedIndex();
         if (selectedIndex < measuredData.size() - 1) {
             Collections.swap(measuredData, selectedIndex, selectedIndex + 1);
@@ -248,7 +247,7 @@ public class Controller {
     }
 
     @FXML
-    private void handleReferenceDelete(ActionEvent event) {
+    private void handleReferenceDelete() {
         int selectedIndex = ui_rList.getSelectionModel().getSelectedIndex();
         if (selectedIndex >= 0) {
             referenceData.remove(selectedIndex);
@@ -256,7 +255,7 @@ public class Controller {
     }
 
     @FXML
-    private void handleMeasuredDelete(ActionEvent event) {
+    private void handleMeasuredDelete() {
         int selectedIndex = ui_mList.getSelectionModel().getSelectedIndex();
         if (selectedIndex >= 0) {
             measuredData.remove(selectedIndex);
@@ -290,12 +289,12 @@ public class Controller {
                 return;
             }
 
-            ratioSeries = new XYChart.Series();
+            ratioSeries = new XYChart.Series<>();
             ratioSeries.setName("Ratio");
-            ui_AnalysisGraph.getData().addAll(ratioSeries);
+            ui_AnalysisGraph.getData().add(ratioSeries);
 
-            for (int i = 0; i < ratio.getxValues().size(); i++) {
-                ratioSeries.getData().add(new XYChart.Data(ratio.getxValues().get(i), ratio.getyValues().get(i)));
+            for (int i = 0; i < ratio.getX().size(); i++) {
+                ratioSeries.getData().add(new XYChart.Data<>(ratio.getX().get(i), ratio.getY().get(i)));
             }
 
             ui_AnalysisGraph.setVisible(true);
@@ -313,24 +312,23 @@ public class Controller {
                 return;
             }
 
-            gammaSeries = new XYChart.Series();
+            gammaSeries = new XYChart.Series<>();
             gammaSeries.setName("Gamma");
-            ui_ProfileGraph.getData().addAll(gammaSeries);
+            ui_ProfileGraph.getData().add(gammaSeries);
 
-            for (int i = 0; i < gamma.getxValues().size(); i++) {
-                gammaSeries.getData().add(new XYChart.Data(gamma.getxValues().get(i), gamma.getyValues().get(i)));
+            for (int i = 0; i < gamma.getX().size(); i++) {
+                gammaSeries.getData().add(new XYChart.Data<>(gamma.getX().get(i), gamma.getY().get(i)));
             }
 
             ResultsFile results = new ResultsFile(currentReferenceProfile, currentMeasuredProfile, gamma);
             String resultsTxt = results.getResults();
             int numberOfLines = resultsTxt.split("\n").length;
 
-            // TODO calculate minumum height of text from resultsFile instead of guessing.
+            // TODO calculate minimum height of text from resultsFile instead of guessing.
             Text resultsText = (Text) ui_ResultsTable.lookup(".text");
             ui_ResultsTable.setMinHeight((numberOfLines + 1) * resultsText.getBoundsInLocal().getHeight());
             ui_ResultsTable.setText(resultsTxt);
             ui_ResultsTable.setVisible(true);
-            return;
         }
     }
 

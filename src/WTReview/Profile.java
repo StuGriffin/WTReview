@@ -26,10 +26,10 @@ import java.util.ArrayList;
 
 public class Profile {
 
-    private ArrayList<Double> xValues;
-    private ArrayList<Double> yValues;
+    private final ArrayList<Double> xValues;
+    private final ArrayList<Double> yValues;
 
-    public Profile(ArrayList<Double> xValues, ArrayList<Double> yValues) {
+    Profile(ArrayList<Double> xValues, ArrayList<Double> yValues) {
 
         if (xValues.size() != yValues.size()) {
             String error = String.format("Profile Data created with uneven dimensions: %s, %s", xValues.size(), yValues.size());
@@ -40,11 +40,11 @@ public class Profile {
         this.yValues = yValues;
     }
 
-    public ArrayList<Double> getxValues() {
+    public ArrayList<Double> getX() {
         return xValues;
     }
 
-    public ArrayList<Double> getyValues() {
+    public ArrayList<Double> getY() {
         return yValues;
     }
 }

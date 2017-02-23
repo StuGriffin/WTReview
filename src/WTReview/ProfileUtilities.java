@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class ProfileUtilities {
+class ProfileUtilities {
 
     // Assumptions:
     //  - Both channels are normalised. Therefor doseDifferenceTolerance can remain as a percentage.
@@ -36,21 +36,21 @@ public class ProfileUtilities {
     public static Profile calcGamma(Profile referenceProfile, Profile measuredProfile, double distanceToAgreement, double doseDifferenceTolerance) {
         ArrayList<Double> gamma = new ArrayList<>();
 
-        ArrayList<Double> refx = referenceProfile.getxValues();
-        ArrayList<Double> measx = measuredProfile.getxValues();
+        ArrayList<Double> refX = referenceProfile.getX();
+        ArrayList<Double> measX = measuredProfile.getX();
 
-        double startValue = Math.max(refx.get(0), measx.get(0));
-        double endValue = Math.min(refx.get(refx.size() - 1), measx.get(measx.size() - 1));
+        double startValue = Math.max(refX.get(0), measX.get(0));
+        double endValue = Math.min(refX.get(refX.size() - 1), measX.get(measX.size() - 1));
 
-        int refLowerIndex = refx.indexOf(startValue);
-        int refUpperIndex = refx.indexOf(endValue);
+        int refLowerIndex = refX.indexOf(startValue);
+        int refUpperIndex = refX.indexOf(endValue);
         int refSamples = refUpperIndex - refLowerIndex;
 
-        int measLowerIndex = measx.indexOf(startValue);
-        int measUpperIndex = measx.indexOf(endValue);
+        int measLowerIndex = measX.indexOf(startValue);
+        int measUpperIndex = measX.indexOf(endValue);
         int measSamples = measUpperIndex - measLowerIndex;
 
-        double refSpacing = refx.get(1) - refx.get(0);
+        double refSpacing = refX.get(1) - refX.get(0);
 
         // TODO investigate java double comparison best practices.
         if (refSamples != measSamples) {
@@ -59,14 +59,14 @@ public class ProfileUtilities {
             return null;
         }
 
-        List<Double> baseX = refx.subList(refLowerIndex, refUpperIndex);
-        List<Double> refy = referenceProfile.getyValues().subList(refLowerIndex, refUpperIndex);
-        List<Double> measy = measuredProfile.getyValues().subList(measLowerIndex, measUpperIndex);
+        List<Double> baseX = refX.subList(refLowerIndex, refUpperIndex);
+        List<Double> refY = referenceProfile.getY().subList(refLowerIndex, refUpperIndex);
+        List<Double> measY = measuredProfile.getY().subList(measLowerIndex, measUpperIndex);
 
         int searchDistance = (int) ((2 * distanceToAgreement) / refSpacing);
 
-        double dtaSqrd = distanceToAgreement * distanceToAgreement;
-        double ddtSqrd = doseDifferenceTolerance * doseDifferenceTolerance;
+        double dtaSquared = distanceToAgreement * distanceToAgreement;
+        double ddtSquared = doseDifferenceTolerance * doseDifferenceTolerance;
 
         for (int i = 0; i < baseX.size(); i++) {
             ArrayList<Double> gammaValues = new ArrayList<>();
@@ -74,15 +74,15 @@ public class ProfileUtilities {
             int startIndex = Math.max(0, i - searchDistance);
             int endIndex = Math.min(baseX.size(), i + 1 + searchDistance);
 
-            double refDose = refy.get(i);
+            double refDose = refY.get(i);
             double refPos = baseX.get(i);
 
             for (int j = startIndex; j < endIndex; j++) {
-                double deltaDose = measy.get(j) - refDose;
+                double deltaDose = measY.get(j) - refDose;
                 double deltaPos = Math.abs(refPos - baseX.get(j));
 
-                double doseSquared = (deltaDose * deltaDose) / ddtSqrd;
-                double posSquared = (deltaPos * deltaPos) / dtaSqrd;
+                double doseSquared = (deltaDose * deltaDose) / ddtSquared;
+                double posSquared = (deltaPos * deltaPos) / dtaSquared;
 
                 gammaValues.add(doseSquared + posSquared);
             }
@@ -91,8 +91,8 @@ public class ProfileUtilities {
         }
 
         for (int i = 0; i < gamma.size(); i++) {
-            double sqrt = Math.sqrt(gamma.get(i));
-            gamma.set(i, sqrt);
+            double squareRoot = Math.sqrt(gamma.get(i));
+            gamma.set(i, squareRoot);
         }
 
         ArrayList<Double> gammaX = new ArrayList<>();
@@ -106,21 +106,19 @@ public class ProfileUtilities {
         // TODO generify duplicate code (with calcGamma) that finds common range for ref/meas profiles.
         ArrayList<Double> ratio = new ArrayList<>();
 
-        ArrayList<Double> refx = referenceProfile.getxValues();
-        ArrayList<Double> measx = measuredProfile.getxValues();
+        ArrayList<Double> refX = referenceProfile.getX();
+        ArrayList<Double> measX = measuredProfile.getX();
 
-        double startValue = Math.max(refx.get(0), measx.get(0));
-        double endValue = Math.min(refx.get(refx.size() - 1), measx.get(measx.size() - 1));
+        double startValue = Math.max(refX.get(0), measX.get(0));
+        double endValue = Math.min(refX.get(refX.size() - 1), measX.get(measX.size() - 1));
 
-        int refLowerIndex = refx.indexOf(startValue);
-        int refUpperIndex = refx.indexOf(endValue);
+        int refLowerIndex = refX.indexOf(startValue);
+        int refUpperIndex = refX.indexOf(endValue);
         int refSamples = refUpperIndex - refLowerIndex;
 
-        int measLowerIndex = measx.indexOf(startValue);
-        int measUpperIndex = measx.indexOf(endValue);
+        int measLowerIndex = measX.indexOf(startValue);
+        int measUpperIndex = measX.indexOf(endValue);
         int measSamples = measUpperIndex - measLowerIndex;
-
-        double refSpacing = refx.get(1) - refx.get(0);
 
         // TODO investigate java double comparison best practices.
         if (refSamples != measSamples) {
@@ -129,12 +127,12 @@ public class ProfileUtilities {
             return null;
         }
 
-        List<Double> baseX = refx.subList(refLowerIndex, refUpperIndex);
-        List<Double> refy = referenceProfile.getyValues().subList(refLowerIndex, refUpperIndex);
-        List<Double> measy = measuredProfile.getyValues().subList(measLowerIndex, measUpperIndex);
+        List<Double> baseX = refX.subList(refLowerIndex, refUpperIndex);
+        List<Double> refY = referenceProfile.getY().subList(refLowerIndex, refUpperIndex);
+        List<Double> measY = measuredProfile.getY().subList(measLowerIndex, measUpperIndex);
 
         for (int i = 0; i < baseX.size(); i++) {
-            ratio.add(measy.get(i) / refy.get(i));
+            ratio.add(measY.get(i) / refY.get(i));
         }
 
         ArrayList<Double> ratioX = new ArrayList<>();

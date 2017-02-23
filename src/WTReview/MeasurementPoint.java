@@ -22,20 +22,20 @@
 
 package WTReview;
 
-public class MeasurementPoint {
+class MeasurementPoint {
     //*abs time, delta time, iec x/y, iec z, tt1, tt2, tt3, tt4, tt5, tt6, tt7, tt8
-    private double absTime;
-    private double deltaTime;
-    private double lateralPos;
-    private double verticalPos;
-    private double channel1;
-    private double channel2;
-    private double channel3;
-    private double channel4;
-    private double channel5;
-    private double channel6;
-    private double channel7;
-    private double channel8;
+    private final double absTime;
+    private final double deltaTime;
+    private final double lateralPos;
+    private final double verticalPos;
+    private final double channel1;
+    private final double channel2;
+    private final double channel3;
+    private final double channel4;
+    private final double channel5;
+    private final double channel6;
+    private final double channel7;
+    private final double channel8;
 
     public MeasurementPoint(double absTime, double deltaTime, double lateralPos, double verticalPos, double channel1, double channel2, double channel3, double channel4, double channel5, double channel6, double channel7, double channel8) {
         this.absTime = absTime;
@@ -50,15 +50,6 @@ public class MeasurementPoint {
         this.channel6 = channel6;
         this.channel7 = channel7;
         this.channel8 = channel8;
-    }
-
-
-    public double getAbsTime() {
-        return absTime;
-    }
-
-    public double getDeltaTime() {
-        return deltaTime;
     }
 
     public double getLateralPos() {

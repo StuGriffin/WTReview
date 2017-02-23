@@ -34,17 +34,17 @@ import java.util.stream.Collectors;
 
 public class MeasurementFile {
     private final List<Double> depths;
-    private Path fileName;
-    private ProfileOrientation orientation;
-    private Boolean[] enabledChannels;
-    private ArrayList<MeasurementPoint> data;
+    private final Path fileName;
+    private final ProfileOrientation orientation;
+    private final Boolean[] enabledChannels;
+    private final ArrayList<MeasurementPoint> data;
 
     MeasurementFile(Path fileName, boolean isLateral, Boolean[] channels, boolean isPDD, ArrayList<MeasurementPoint> data) {
         this.fileName = fileName;
         this.enabledChannels = channels;
         this.data = data;
         this.orientation = getProfileOrientation(isPDD, isLateral);
-        this.depths = data.stream().map(x -> x.getVerticalPos()).distinct().collect(Collectors.toList());
+        this.depths = data.stream().map(MeasurementPoint::getVerticalPos).distinct().collect(Collectors.toList());
     }
 
     public ProfileOrientation getOrientation() {
@@ -68,59 +68,59 @@ public class MeasurementFile {
         ArrayList<Double> yValues = new ArrayList<>();
 
         if (orientation == ProfileOrientation.DepthDose) {
-            xValues.addAll(data.stream().map(x -> x.getVerticalPos()).collect(Collectors.toList()));
+            xValues.addAll(data.stream().map(MeasurementPoint::getVerticalPos).collect(Collectors.toList()));
             switch (primaryChannel) {
                 case 0:
-                    yValues.addAll(data.stream().map(x -> x.getChannel1()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel1).collect(Collectors.toList()));
                     break;
                 case 1:
-                    yValues.addAll(data.stream().map(x -> x.getChannel2()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel2).collect(Collectors.toList()));
                     break;
                 case 2:
-                    yValues.addAll(data.stream().map(x -> x.getChannel3()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel3).collect(Collectors.toList()));
                     break;
                 case 3:
-                    yValues.addAll(data.stream().map(x -> x.getChannel4()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel4).collect(Collectors.toList()));
                     break;
                 case 4:
-                    yValues.addAll(data.stream().map(x -> x.getChannel5()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel5).collect(Collectors.toList()));
                     break;
                 case 5:
-                    yValues.addAll(data.stream().map(x -> x.getChannel6()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel6).collect(Collectors.toList()));
                     break;
                 case 6:
-                    yValues.addAll(data.stream().map(x -> x.getChannel7()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel7).collect(Collectors.toList()));
                     break;
                 case 7:
-                    yValues.addAll(data.stream().map(x -> x.getChannel8()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel8).collect(Collectors.toList()));
                     break;
             }
         } else {
-            xValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getLateralPos()).collect(Collectors.toList()));
+            xValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getLateralPos).collect(Collectors.toList()));
             switch (primaryChannel) {
                 case 0:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel1()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel1).collect(Collectors.toList()));
                     break;
                 case 1:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel2()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel2).collect(Collectors.toList()));
                     break;
                 case 2:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel3()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel3).collect(Collectors.toList()));
                     break;
                 case 3:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel4()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel4).collect(Collectors.toList()));
                     break;
                 case 4:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel5()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel5).collect(Collectors.toList()));
                     break;
                 case 5:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel6()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel6).collect(Collectors.toList()));
                     break;
                 case 6:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel7()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel7).collect(Collectors.toList()));
                     break;
                 case 7:
-                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(x -> x.getChannel8()).collect(Collectors.toList()));
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel8).collect(Collectors.toList()));
                     break;
             }
         }
@@ -136,8 +136,14 @@ public class MeasurementFile {
         }
 
         if (orientation != ProfileOrientation.DepthDose && centre) {
+
             double percentageHeight = orientation == ProfileOrientation.Longitudinal ? 0.5 : 0.25;
-            xValues = CentreProfile(xValues, yValues, percentageHeight);
+            double profileCentre = findProfileCentre(xValues, yValues, percentageHeight);
+
+            // Check if the profile is an on-axis profile before centring
+            if (profileCentre < 5 && profileCentre > -5) {
+                xValues = CentreProfile(xValues, yValues, percentageHeight);
+            }
         }
 
         Profile profile = new Profile(xValues, yValues);
@@ -227,13 +233,9 @@ public class MeasurementFile {
         return 0.5 * (leadingEdge + trailingEdge);
     }
 
-    private double findProfileCentre(Profile profile, double percentageHeight) {
-        return findProfileCentre(profile.getxValues(), profile.getyValues(), percentageHeight);
-    }
-
     private Profile resampleProfile(Profile profile, double desiredXSpacing) {
-        double[] x = profile.getxValues().stream().mapToDouble(p -> p).toArray();
-        double[] y = profile.getyValues().stream().mapToDouble(p -> p).toArray();
+        double[] x = profile.getX().stream().mapToDouble(p -> p).toArray();
+        double[] y = profile.getY().stream().mapToDouble(p -> p).toArray();
         LinearInterpolator interpolation = new LinearInterpolator();
         PolynomialSplineFunction interpolationFunction = interpolation.interpolate(x, y);
 
@@ -260,12 +262,12 @@ public class MeasurementFile {
         }
     }
 
-    public double findProfileWidth() {
+    double findProfileWidth() {
         Profile profile = getProfile();
         double percentageHeight = orientation == ProfileOrientation.Longitudinal ? 0.5 : 0.25;
-        int centerIndex = findProfileCenterIndex(profile.getyValues(), percentageHeight);
-        double leadingEdge = findProfileEdge(profile.getxValues(), profile.getyValues(), 0, percentageHeight);
-        double trailingEdge = findProfileEdge(profile.getxValues(), profile.getyValues(), centerIndex, percentageHeight);
+        int centerIndex = findProfileCenterIndex(profile.getY(), percentageHeight);
+        double leadingEdge = findProfileEdge(profile.getX(), profile.getY(), 0, percentageHeight);
+        double trailingEdge = findProfileEdge(profile.getX(), profile.getY(), centerIndex, percentageHeight);
         return Math.abs(trailingEdge - leadingEdge);
     }
 
