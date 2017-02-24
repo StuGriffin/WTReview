@@ -28,12 +28,14 @@ import java.util.List;
 
 class ProfileUtilities {
 
-    // Assumptions:
-    //  - Both channels are normalised. Therefor doseDifferenceTolerance can remain as a percentage.
-    //
-    // Conditions:
-    // - Gamma is calculated based on a 'global' tolerance.
-    public static Profile calcGamma(Profile referenceProfile, Profile measuredProfile, double distanceToAgreement, double doseDifferenceTolerance) {
+    /*
+    * Assumptions:
+    *  - Both channels are normalised. Therefor doseDifferenceTolerance can remain as a percentage.
+    *
+    * Conditions:
+    * - Gamma is calculated based on a 'global' tolerance.
+    */
+    static Profile calcGamma(Profile referenceProfile, Profile measuredProfile, double distanceToAgreement, double doseDifferenceTolerance) {
         ArrayList<Double> gamma = new ArrayList<>();
 
         ArrayList<Double> refX = referenceProfile.getX();
@@ -101,7 +103,7 @@ class ProfileUtilities {
         return new Profile(gammaX, gamma);
     }
 
-    public static Profile calcRatio(Profile referenceProfile, Profile measuredProfile) {
+    static Profile calcRatio(Profile referenceProfile, Profile measuredProfile) {
 
         // TODO generify duplicate code (with calcGamma) that finds common range for ref/meas profiles.
         ArrayList<Double> ratio = new ArrayList<>();

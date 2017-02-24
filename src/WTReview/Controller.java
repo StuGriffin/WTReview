@@ -34,10 +34,12 @@ import javafx.scene.Node;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.Button;
-import javafx.scene.control.ListView;
-import javafx.scene.control.RadioButton;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.TextFieldListCell;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -51,6 +53,7 @@ import java.util.List;
 
 public class Controller {
 
+    private static final DataFormat SERIALIZED_MIME_TYPE = new DataFormat("application/x-java-serialized-object");
     private final FileChooser fileChooser = new FileChooser();
     private final ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
     private final ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
@@ -63,9 +66,9 @@ public class Controller {
     @FXML
     private LineChart<Number, Number> ui_AnalysisGraph;
     @FXML
-    private VBox chartPane;
+    private VBox ui_chartPane;
     @FXML
-    private Button resetBtn;
+    private Button ui_resetBtn;
     @FXML
     private TextArea ui_ResultsTable;
     @FXML
@@ -79,6 +82,10 @@ public class Controller {
 
     @FXML
     private void initialize() {
+        // Setup Drag & Drop
+        setupDragDrop(ui_mList);
+        setupDragDrop(ui_rList);
+
         // Setup data tables.
         ui_mList.setItems(measuredData);
         ui_rList.setItems(referenceData);
@@ -156,9 +163,9 @@ public class Controller {
         final Rectangle zoomRect = new Rectangle();
         zoomRect.setManaged(false);
         zoomRect.setFill(Color.LIGHTSEAGREEN.deriveColor(0, 1, 1, 0.5));
-        chartPane.getChildren().add(zoomRect);
+        ui_chartPane.getChildren().add(zoomRect);
         setUpZooming(zoomRect, ui_ProfileGraph);
-        resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
+        ui_resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
 
         // TODO remove loading of test data.
         LoadTestData();
@@ -355,8 +362,8 @@ public class Controller {
 
         zoomingNode.setOnMousePressed(event -> {
             Point2D pointInScene = new Point2D(event.getSceneX(), event.getSceneY());
-            double x = chartPane.sceneToLocal(pointInScene).getX();
-            double y = chartPane.sceneToLocal(pointInScene).getY();
+            double x = ui_chartPane.sceneToLocal(pointInScene).getX();
+            double y = ui_chartPane.sceneToLocal(pointInScene).getY();
 
             Point2D pointInChartPane = new Point2D(x, y);
             Bounds graphBoundsInChartPane = ui_ProfileGraph.getBoundsInParent();
@@ -371,8 +378,8 @@ public class Controller {
 
         zoomingNode.setOnMouseDragged(event -> {
             Point2D pointInScene = new Point2D(event.getSceneX(), event.getSceneY());
-            double x = chartPane.sceneToLocal(pointInScene).getX();
-            double y = chartPane.sceneToLocal(pointInScene).getY();
+            double x = ui_chartPane.sceneToLocal(pointInScene).getX();
+            double y = ui_chartPane.sceneToLocal(pointInScene).getY();
 
             Point2D pointInChartPane = new Point2D(x, y);
             Bounds graphBoundsInChartPane = ui_ProfileGraph.getBoundsInParent();
@@ -437,6 +444,58 @@ public class Controller {
         yAxis.setAutoRanging(true);
         final NumberAxis xAxis = (NumberAxis) chart.getXAxis();
         xAxis.setAutoRanging(true);
+    }
+
+    private <T> void setupDragDrop(ListView<T> listView) {
+        listView.setCellFactory(tv -> {
+            ListCell<T> cell = new TextFieldListCell<>();
+
+            cell.setOnDragDetected(event -> {
+                if (!cell.isEmpty()) {
+                    Integer index = cell.getIndex();
+                    Dragboard db = cell.startDragAndDrop(TransferMode.MOVE);
+                    db.setDragView(cell.snapshot(null, null));
+                    ClipboardContent cc = new ClipboardContent();
+                    cc.put(SERIALIZED_MIME_TYPE, index);
+                    db.setContent(cc);
+                    event.consume();
+                }
+            });
+
+            cell.setOnDragOver(event -> {
+                Dragboard db = event.getDragboard();
+                if (db.hasContent(SERIALIZED_MIME_TYPE)) {
+                    if (cell.getIndex() != (Integer) db.getContent(SERIALIZED_MIME_TYPE)) {
+                        event.acceptTransferModes(TransferMode.MOVE);
+                        event.consume();
+                    }
+                }
+            });
+
+            cell.setOnDragDropped(event -> {
+                Dragboard db = event.getDragboard();
+                if (db.hasContent(SERIALIZED_MIME_TYPE)) {
+                    int draggedIndex = (Integer) db.getContent(SERIALIZED_MIME_TYPE);
+                    T draggedItem = listView.getItems().remove(draggedIndex);
+
+                    int dropIndex;
+
+                    if (cell.isEmpty()) {
+                        dropIndex = ui_rList.getItems().size();
+                    } else {
+                        dropIndex = cell.getIndex();
+                    }
+
+                    listView.getItems().add(dropIndex, draggedItem);
+
+                    event.setDropCompleted(true);
+                    listView.getSelectionModel().select(dropIndex);
+                    event.consume();
+                }
+            });
+
+            return cell;
+        });
     }
 }
 
