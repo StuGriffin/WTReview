@@ -22,10 +22,13 @@
 
 package WTReview;
 
+import com.sun.javafx.tk.Toolkit;
+import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
@@ -35,11 +38,6 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.TextFieldListCell;
-import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.DataFormat;
-import javafx.scene.input.Dragboard;
-import javafx.scene.input.TransferMode;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
@@ -48,12 +46,13 @@ import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class Controller {
 
-    private static final DataFormat SERIALIZED_MIME_TYPE = new DataFormat("application/x-java-serialized-object");
+
     private final FileChooser fileChooser = new FileChooser();
     private final ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
     private final ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
@@ -73,6 +72,7 @@ public class Controller {
     private TextArea ui_ResultsTable;
     @FXML
     private RadioButton ui_SyncLists;
+    @FXML ProgressIndicator ui_Progress;
     private LineChart.Series<Number, Number> measuredSeries;
     private LineChart.Series<Number, Number> referenceSeries;
     private LineChart.Series<Number, Number> gammaSeries;
@@ -83,8 +83,8 @@ public class Controller {
     @FXML
     private void initialize() {
         // Setup Drag & Drop
-        setupDragDrop(ui_mList);
-        setupDragDrop(ui_rList);
+        ViewHelpers.setupDragDrop(ui_mList);
+        ViewHelpers.setupDragDrop(ui_rList);
 
         // Setup data tables.
         ui_mList.setItems(measuredData);
@@ -103,6 +103,10 @@ public class Controller {
         // Setup Results Table.
         ui_ResultsTable.managedProperty().bind(ui_ResultsTable.visibleProperty());
         ui_ResultsTable.setVisible(false);
+
+        // Setup Progress Bar.
+        ui_Progress.managedProperty().bind(ui_Progress.visibleProperty());
+        ui_Progress.setVisible(false);
 
         // Sync selection for the 2 data list views.
         ui_rList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
@@ -166,54 +170,48 @@ public class Controller {
         ui_chartPane.getChildren().add(zoomRect);
         setUpZooming(zoomRect, ui_ProfileGraph);
         ui_resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
-
-        // TODO remove loading of test data.
-        LoadTestData();
     }
 
     @FXML
     private void handleAddMeasuredButtonAction(ActionEvent event) {
-        Node source = (Node) event.getSource();
-        Window theStage = source.getScene().getWindow();
-
-        List<File> list = fileChooser.showOpenMultipleDialog(theStage);
-        if (list != null) {
-            int filesAdded = 0;
-            for (File file : list) {
-                MeasurementFile fileToAdd = TemsReader.ReadInProfiles(file.getPath());
-                if (fileToAdd != null) {
-                    measuredData.add(fileToAdd);
-                    filesAdded++;
-                }
-            }
-
-            if (list.size() > filesAdded) {
-                String errorString = String.format("%s files added from %s files selected", filesAdded, list.size());
-                System.out.println(errorString);
-            }
-        }
+        loadData((Node)event.getSource(), measuredData);
     }
 
     @FXML
     private void handleAddReferenceButtonAction(ActionEvent event) {
-        Node source = (Node) event.getSource();
-        Window theStage = source.getScene().getWindow();
+        loadData((Node)event.getSource(), referenceData);
+    }
 
-        List<File> list = fileChooser.showOpenMultipleDialog(theStage);
+    private void loadData(Node source, ObservableList<MeasurementFile> uiTarget)
+    {
+        final Window theStage = source.getScene().getWindow();
+        final List<File> list = fileChooser.showOpenMultipleDialog(theStage);
         if (list != null) {
-            int filesAdded = 0;
-            for (File file : list) {
-                MeasurementFile fileToAdd = TemsReader.ReadInProfiles(file.getPath());
-                if (fileToAdd != null) {
-                    referenceData.add(fileToAdd);
-                    filesAdded++;
-                }
-            }
+            Task<ArrayList<MeasurementFile>> readDataTask = new Task<ArrayList<MeasurementFile>>(){
+                @Override protected ArrayList<MeasurementFile> call(){
+                    ArrayList<MeasurementFile> results = new ArrayList<>();
+                    for (int i = 0; i < list.size(); i++)
+                    {
+                        if(isCancelled()) {
+                            break;
+                        }
 
-            if (list.size() > filesAdded) {
-                String errorString = String.format("%s files added from %s files selected", filesAdded, list.size());
-                System.out.println(errorString);
-            }
+                        MeasurementFile fileToAdd = TemsReader.ReadInProfiles(list.get(i).getPath());
+                        if (fileToAdd != null) {
+                            results.add(fileToAdd);
+                        }
+
+                        updateProgress(i, list.size());
+                    }
+                    return  results;
+                }};
+
+            ui_Progress.visibleProperty().bind(readDataTask.runningProperty());
+            ui_Progress.progressProperty().bind(readDataTask.progressProperty());
+            readDataTask.setOnSucceeded(stateEvent -> uiTarget.addAll(readDataTask.getValue()));
+
+            Thread tread = new Thread(readDataTask);
+            tread.start();
         }
     }
 
@@ -339,24 +337,6 @@ public class Controller {
         }
     }
 
-    private void LoadTestData() {
-        String rLong = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/rlong.csv";
-        String rLat = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/rLat.csv";
-        String rPDD = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/rPDD.csv";
-
-        referenceData.add(TemsReader.ReadInProfiles(rLong));
-        referenceData.add(TemsReader.ReadInProfiles(rLat));
-        referenceData.add(TemsReader.ReadInProfiles(rPDD));
-
-        String mLong = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/mlong.csv";
-        String mLat = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/mLat.csv";
-        String mPDD = "/Users/stgriffin/Library/Mobile Documents/com~apple~CloudDocs/Projects/Coding/WTReview/TestData/mPDD.csv";
-
-        measuredData.add(TemsReader.ReadInProfiles(mLong));
-        measuredData.add(TemsReader.ReadInProfiles(mLat));
-        measuredData.add(TemsReader.ReadInProfiles(mPDD));
-    }
-
     private void setUpZooming(final Rectangle rect, final Node zoomingNode) {
         final ObjectProperty<Point2D> mouseAnchor = new SimpleObjectProperty<>();
 
@@ -445,57 +425,4 @@ public class Controller {
         final NumberAxis xAxis = (NumberAxis) chart.getXAxis();
         xAxis.setAutoRanging(true);
     }
-
-    private <T> void setupDragDrop(ListView<T> listView) {
-        listView.setCellFactory(tv -> {
-            ListCell<T> cell = new TextFieldListCell<>();
-
-            cell.setOnDragDetected(event -> {
-                if (!cell.isEmpty()) {
-                    Integer index = cell.getIndex();
-                    Dragboard db = cell.startDragAndDrop(TransferMode.MOVE);
-                    db.setDragView(cell.snapshot(null, null));
-                    ClipboardContent cc = new ClipboardContent();
-                    cc.put(SERIALIZED_MIME_TYPE, index);
-                    db.setContent(cc);
-                    event.consume();
-                }
-            });
-
-            cell.setOnDragOver(event -> {
-                Dragboard db = event.getDragboard();
-                if (db.hasContent(SERIALIZED_MIME_TYPE)) {
-                    if (cell.getIndex() != (Integer) db.getContent(SERIALIZED_MIME_TYPE)) {
-                        event.acceptTransferModes(TransferMode.MOVE);
-                        event.consume();
-                    }
-                }
-            });
-
-            cell.setOnDragDropped(event -> {
-                Dragboard db = event.getDragboard();
-                if (db.hasContent(SERIALIZED_MIME_TYPE)) {
-                    int draggedIndex = (Integer) db.getContent(SERIALIZED_MIME_TYPE);
-                    T draggedItem = listView.getItems().remove(draggedIndex);
-
-                    int dropIndex;
-
-                    if (cell.isEmpty()) {
-                        dropIndex = ui_rList.getItems().size();
-                    } else {
-                        dropIndex = cell.getIndex();
-                    }
-
-                    listView.getItems().add(dropIndex, draggedItem);
-
-                    event.setDropCompleted(true);
-                    listView.getSelectionModel().select(dropIndex);
-                    event.consume();
-                }
-            });
-
-            return cell;
-        });
-    }
 }
-

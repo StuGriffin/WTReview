@@ -38,34 +38,13 @@ class ProfileUtilities {
     static Profile calcGamma(Profile referenceProfile, Profile measuredProfile, double distanceToAgreement, double doseDifferenceTolerance) {
         ArrayList<Double> gamma = new ArrayList<>();
 
-        ArrayList<Double> refX = referenceProfile.getX();
-        ArrayList<Double> measX = measuredProfile.getX();
+        // TODO handle case where spacing does not match.
+        List<Double> baseX = GetCommonX(referenceProfile, measuredProfile);
+        List<Double> refY = GetSubsetY(referenceProfile, baseX);
+        List<Double> measY = GetSubsetY(measuredProfile, baseX);
 
-        double startValue = Math.max(refX.get(0), measX.get(0));
-        double endValue = Math.min(refX.get(refX.size() - 1), measX.get(measX.size() - 1));
-
-        int refLowerIndex = refX.indexOf(startValue);
-        int refUpperIndex = refX.indexOf(endValue);
-        int refSamples = refUpperIndex - refLowerIndex;
-
-        int measLowerIndex = measX.indexOf(startValue);
-        int measUpperIndex = measX.indexOf(endValue);
-        int measSamples = measUpperIndex - measLowerIndex;
-
-        double refSpacing = refX.get(1) - refX.get(0);
-
-        // TODO investigate java double comparison best practices.
-        if (refSamples != measSamples) {
-            String errorString = String.format("Spacing is not equivalent, ref samples:%s, meas samples:%s", refSamples, measSamples);
-            System.out.println(errorString);
-            return null;
-        }
-
-        List<Double> baseX = refX.subList(refLowerIndex, refUpperIndex);
-        List<Double> refY = referenceProfile.getY().subList(refLowerIndex, refUpperIndex);
-        List<Double> measY = measuredProfile.getY().subList(measLowerIndex, measUpperIndex);
-
-        int searchDistance = (int) ((2 * distanceToAgreement) / refSpacing);
+        double spacing = baseX.get(1) - baseX.get(0);
+        int searchDistance = (int) ((2 * distanceToAgreement) / spacing);
 
         double dtaSquared = distanceToAgreement * distanceToAgreement;
         double ddtSquared = doseDifferenceTolerance * doseDifferenceTolerance;
@@ -104,10 +83,24 @@ class ProfileUtilities {
     }
 
     static Profile calcRatio(Profile referenceProfile, Profile measuredProfile) {
-
-        // TODO generify duplicate code (with calcGamma) that finds common range for ref/meas profiles.
         ArrayList<Double> ratio = new ArrayList<>();
 
+        // TODO handle case where spacing does not match.
+        List<Double> baseX = GetCommonX(referenceProfile, measuredProfile);
+        List<Double> refY = GetSubsetY(referenceProfile, baseX);
+        List<Double> measY = GetSubsetY(measuredProfile, baseX);
+
+        for (int i = 0; i < baseX.size(); i++) {
+            ratio.add(measY.get(i) / refY.get(i));
+        }
+
+        ArrayList<Double> ratioX = new ArrayList<>();
+        ratioX.addAll(baseX);
+
+        return new Profile(ratioX, ratio);
+    }
+
+    private static List<Double> GetCommonX(Profile referenceProfile, Profile measuredProfile) {
         ArrayList<Double> refX = referenceProfile.getX();
         ArrayList<Double> measX = measuredProfile.getX();
 
@@ -129,17 +122,12 @@ class ProfileUtilities {
             return null;
         }
 
-        List<Double> baseX = refX.subList(refLowerIndex, refUpperIndex);
-        List<Double> refY = referenceProfile.getY().subList(refLowerIndex, refUpperIndex);
-        List<Double> measY = measuredProfile.getY().subList(measLowerIndex, measUpperIndex);
+        return refX.subList(refLowerIndex, refUpperIndex + 1);
+    }
 
-        for (int i = 0; i < baseX.size(); i++) {
-            ratio.add(measY.get(i) / refY.get(i));
-        }
-
-        ArrayList<Double> ratioX = new ArrayList<>();
-        ratioX.addAll(baseX);
-
-        return new Profile(ratioX, ratio);
+    private static List<Double> GetSubsetY(Profile profile, List<Double> subsetX) {
+        int startIndex = profile.getX().indexOf(subsetX.get(0));
+        int endIndex = profile.getX().indexOf(subsetX.get(subsetX.size() - 1)) + 1;
+        return profile.getY().subList(startIndex, endIndex);
     }
 }

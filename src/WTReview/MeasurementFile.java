@@ -53,13 +53,15 @@ public class MeasurementFile {
 
     @Override
     public String toString() {
-        return String.format("%s Profile - %s", orientation, fileName);
+        //return String.format("%s Profile - %s", orientation, fileName);
+        return fileName.toString();
     }
 
     Profile getProfile() {
         double depth = 15.0;
         int firstEnabledChannel = Arrays.asList(enabledChannels).indexOf(true);
         double xSpacing = orientation == ProfileOrientation.Longitudinal ? 0.1 : 0.5;
+        xSpacing = orientation == ProfileOrientation.DepthDose ? 1 : xSpacing;
         return getProfile(depth, firstEnabledChannel, true, true, true, xSpacing);
     }
 
