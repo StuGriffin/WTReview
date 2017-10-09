@@ -32,12 +32,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class MeasurementFile {
+public class MeasurementFile implements Comparable<MeasurementFile> {
     private final List<Double> depths;
     private final Path fileName;
     private final ProfileOrientation orientation;
     private final Boolean[] enabledChannels;
     private final ArrayList<MeasurementPoint> data;
+    private final int fieldWidth;
 
     MeasurementFile(Path fileName, boolean isLateral, Boolean[] channels, boolean isPDD, ArrayList<MeasurementPoint> data) {
         this.fileName = fileName;
@@ -45,31 +46,50 @@ public class MeasurementFile {
         this.data = data;
         this.orientation = getProfileOrientation(isPDD, isLateral);
         this.depths = data.stream().map(MeasurementPoint::getVerticalPos).distinct().collect(Collectors.toList());
+        this.fieldWidth = estimateFieldWidth(fileName);
+    }
+
+    private int estimateFieldWidth(Path fileName) {
+
+        String file = fileName.toString();
+
+        // TODO add filter strings to properties file for easy customisation.
+        if (file.contains("1cm") || file.contains("10mm") || file.contains("J07") || file.contains("J7")) {
+            return 10;
+        } else if (file.contains("1.8cm") || file.contains("18mm") || file.contains("J14")) {
+            return 18;
+        } else if (file.contains("2.5cm") || file.contains("25mm") || file.contains("J20")) {
+            return 25;
+        } else if (file.contains("5cm") || file.contains("50mm") || file.contains("J42")) {
+            return 50;
+        } else return -1;
     }
 
     public ProfileOrientation getOrientation() {
         return orientation;
     }
 
-    @Override
-    public String toString() {
-        //return String.format("%s Profile - %s", orientation, fileName);
-        return fileName.toString();
+    public int getProfileFieldWidth() {
+        return fieldWidth;
     }
 
     Profile getProfile() {
-        double depth = 15.0;
         int firstEnabledChannel = Arrays.asList(enabledChannels).indexOf(true);
-        double xSpacing = orientation == ProfileOrientation.Longitudinal ? 0.1 : 0.5;
-        xSpacing = orientation == ProfileOrientation.DepthDose ? 1 : xSpacing;
-        return getProfile(depth, firstEnabledChannel, true, true, true, xSpacing);
+        return getProfile(firstEnabledChannel);
+    }
+
+    Profile getProfile(int primaryChannel) {
+        double depth = 15.0;
+        double xSpacing = orientation == ProfileOrientation.Long ? 0.1 : 0.5;
+        xSpacing = orientation == ProfileOrientation.PDD ? 1 : xSpacing;
+        return getProfile(depth, primaryChannel, true, true, true, xSpacing);
     }
 
     private Profile getProfile(double depth, int primaryChannel, boolean normalise, boolean centre, boolean resample, double newSpacing) {
         ArrayList<Double> xValues = new ArrayList<>();
         ArrayList<Double> yValues = new ArrayList<>();
 
-        if (orientation == ProfileOrientation.DepthDose) {
+        if (orientation == ProfileOrientation.PDD) {
             xValues.addAll(data.stream().map(MeasurementPoint::getVerticalPos).collect(Collectors.toList()));
             switch (primaryChannel) {
                 case 0:
@@ -127,43 +147,48 @@ public class MeasurementFile {
             }
         }
 
-        // Check the profile is orientated correctly, i.e. increasing x.
-        if (xValues.get(0) > xValues.get(xValues.size() - 1)) {
-            Collections.reverse(xValues);
-            Collections.reverse(yValues);
-        }
-
-        if (normalise) {
-            yValues = NormaliseProfile(yValues);
-        }
-
-        if (orientation != ProfileOrientation.DepthDose && centre) {
-
-            double percentageHeight = orientation == ProfileOrientation.Longitudinal ? 0.5 : 0.25;
-            double profileCentre = findProfileCentre(xValues, yValues, percentageHeight);
-
-            // Check if the profile is an on-axis profile before centring
-            if (profileCentre < 5 && profileCentre > -5) {
-                xValues = CentreProfile(xValues, yValues, percentageHeight);
+        try {
+            // Check the profile is orientated correctly, i.e. increasing x.
+            if (xValues.get(0) > xValues.get(xValues.size() - 1)) {
+                Collections.reverse(xValues);
+                Collections.reverse(yValues);
             }
+
+            if (normalise) {
+                yValues = NormaliseProfile(yValues);
+            }
+
+            if (orientation != ProfileOrientation.PDD && centre) {
+
+                double percentageHeight = orientation == ProfileOrientation.Long ? 0.5 : 0.25;
+                double profileCentre = findProfileCentre(xValues, yValues, percentageHeight);
+
+                // Check if the profile is an on-axis profile before centring
+                if (profileCentre < 5 && profileCentre > -5) {
+                    xValues = CentreProfile(xValues, yValues, percentageHeight);
+                }
+            }
+
+            Profile profile = new Profile(xValues, yValues);
+
+            if (resample) {
+                profile = resampleProfile(profile, newSpacing);
+            }
+
+            return profile;
+        } catch (Exception e) {
+            // TODO improve error handling with profile generation!
+            return null;
         }
-
-        Profile profile = new Profile(xValues, yValues);
-
-        if (resample) {
-            profile = resampleProfile(profile, newSpacing);
-        }
-
-        return profile;
     }
 
     private ProfileOrientation getProfileOrientation(Boolean isPDD, boolean isLateral) {
         if (isPDD) {
-            return ProfileOrientation.DepthDose;
+            return ProfileOrientation.PDD;
         } else if (isLateral) {
-            return ProfileOrientation.Lateral;
+            return ProfileOrientation.Lat;
         } else {
-            return ProfileOrientation.Longitudinal;
+            return ProfileOrientation.Long;
         }
     }
 
@@ -171,7 +196,7 @@ public class MeasurementFile {
 
         int i = Math.max(startIndex, 2);
         int lengthOfProfile = yValues.size();
-        while (hasSameSign(yValues.get(i) - percentageHeight, yValues.get(i - 1) - percentageHeight) && i < lengthOfProfile) {
+        while (MathHelpers.hasSameSign(yValues.get(i) - percentageHeight, yValues.get(i - 1) - percentageHeight) && i < lengthOfProfile) {
             i++;
         }
 
@@ -241,8 +266,8 @@ public class MeasurementFile {
         LinearInterpolator interpolation = new LinearInterpolator();
         PolynomialSplineFunction interpolationFunction = interpolation.interpolate(x, y);
 
-        double xStart = findWholeNumberClosestToZero(x[0]);
-        double xEnd = findWholeNumberClosestToZero(x[x.length - 1]);
+        double xStart = MathHelpers.findWholeNumberClosestToZero(x[0]);
+        double xEnd = MathHelpers.findWholeNumberClosestToZero(x[x.length - 1]);
 
         int numberOfElements = (int) ((xEnd - xStart) / desiredXSpacing);
         ArrayList<Double> newX = new ArrayList<>();
@@ -256,25 +281,46 @@ public class MeasurementFile {
         return new Profile(newX, newY);
     }
 
-    private double findWholeNumberClosestToZero(double value) {
-        if (value < 0) {
-            return Math.ceil(value);
+    private String findProfilePosition() {
+        if (getProfile() == null) {
+            return "";
+        }
+
+        if (getOrientation() == ProfileOrientation.PDD) {
+            return "";
+        }
+
+        double referenceWidth = getOrientation() == ProfileOrientation.Lat ? 0.25 : 0.5;
+        double profileCentre = findProfileCentre(getProfile().getX(), getProfile().getY(), referenceWidth);
+
+        double allowableRange = 10;
+        if (profileCentre < -allowableRange) {
+            return "-IECy";
+        } else if (profileCentre > allowableRange) {
+            return "+IECy";
         } else {
-            return Math.floor(value);
+            return "";
         }
     }
 
     double findProfileWidth() {
         Profile profile = getProfile();
-        double percentageHeight = orientation == ProfileOrientation.Longitudinal ? 0.5 : 0.25;
+        double percentageHeight = orientation == ProfileOrientation.Long ? 0.5 : 0.25;
         int centerIndex = findProfileCenterIndex(profile.getY(), percentageHeight);
         double leadingEdge = findProfileEdge(profile.getX(), profile.getY(), 0, percentageHeight);
         double trailingEdge = findProfileEdge(profile.getX(), profile.getY(), centerIndex, percentageHeight);
         return Math.abs(trailingEdge - leadingEdge);
     }
 
-    // TODO: move to a math library.
-    private Boolean hasSameSign(double a, double b) {
-        return a * b >= 0.0d;
+    @Override
+    public String toString() {
+        String field = fieldWidth > 0 ? Double.toString(fieldWidth) + "mm" : fileName.toString();
+        String position = findProfilePosition();
+        return String.format("%s Profile - %s %s", orientation, field, position);
+    }
+
+    @Override
+    public int compareTo(MeasurementFile other) {
+        return Integer.compare(this.fieldWidth + this.orientation.getValue(), other.fieldWidth + other.orientation.getValue());
     }
 }

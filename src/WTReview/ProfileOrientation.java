@@ -23,7 +23,17 @@
 package WTReview;
 
 public enum ProfileOrientation {
-    Lateral,
-    Longitudinal,
-    DepthDose
+    Lat(300),
+    Long(200),
+    PDD(100);
+
+    private final int value;
+
+    ProfileOrientation(int value) {
+        this.value = value;
+    }
+
+    public int getValue() {
+        return value;
+    }
 }

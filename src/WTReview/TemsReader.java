@@ -103,6 +103,7 @@ class TemsReader {
             System.out.println(successString);
 
             return measurement;
+
         } catch (Exception exception) {
             String errorString = String.format("Error during ReadInProfiles: %s", exception.toString());
             System.out.println(errorString);

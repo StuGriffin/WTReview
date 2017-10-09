@@ -42,13 +42,13 @@ class ResultsFile {
             return null;
         }
 
-        if (referenceProfile.getOrientation() != ProfileOrientation.DepthDose) {
+        if (referenceProfile.getOrientation() != ProfileOrientation.PDD) {
             double referenceWidth = referenceProfile.findProfileWidth();
             double measuredWidth = measuredProfile.findProfileWidth();
             double widthDifference = measuredWidth - referenceWidth;
             double widthDifferencePercentage = (widthDifference / referenceWidth) * 100;
             double maxGamma = Collections.max(gammaProfile.getY());
-            String widthType = referenceProfile.getOrientation() == ProfileOrientation.Lateral ? "FWQM" : "FWHM";
+            String widthType = referenceProfile.getOrientation() == ProfileOrientation.Lat ? "FWQM" : "FWHM";
 
             return String.format("Reference %s: %.2fmm\nMeasured %s: %.2fmm\nDifference: %.2fmm\nDifference: %.2f%%\nMax Gamma: %.2f", widthType, referenceWidth, widthType, measuredWidth, widthDifference, widthDifferencePercentage, maxGamma);
         }

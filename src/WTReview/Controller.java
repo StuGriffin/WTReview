@@ -22,31 +22,45 @@
 
 package WTReview;
 
-import com.sun.javafx.tk.Toolkit;
-import javafx.application.Platform;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Bounds;
 import javafx.geometry.Point2D;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
+import javafx.scene.image.WritableImage;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Text;
-import javafx.stage.FileChooser;
-import javafx.stage.Window;
+import javafx.stage.*;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -72,11 +86,11 @@ public class Controller {
     private TextArea ui_ResultsTable;
     @FXML
     private RadioButton ui_SyncLists;
-    @FXML ProgressIndicator ui_Progress;
-    private LineChart.Series<Number, Number> measuredSeries;
-    private LineChart.Series<Number, Number> referenceSeries;
-    private LineChart.Series<Number, Number> gammaSeries;
-    private LineChart.Series<Number, Number> ratioSeries;
+    @FXML
+    private ProgressIndicator ui_Progress;
+    @FXML
+    private Button ui_reportBtn;
+
     private MeasurementFile currentReferenceProfile;
     private MeasurementFile currentMeasuredProfile;
 
@@ -93,12 +107,14 @@ public class Controller {
         // Setup Main Graph.
         ui_ProfileGraph.setCreateSymbols(false);
         ui_ProfileGraph.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
+        ui_ProfileGraph.setAnimated(false);
 
         // Setup Analysis Graph.
         ui_AnalysisGraph.setCreateSymbols(false);
         ui_AnalysisGraph.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
         ui_AnalysisGraph.managedProperty().bind(ui_AnalysisGraph.visibleProperty());
         ui_AnalysisGraph.setVisible(false);
+        ui_AnalysisGraph.setAnimated(false);
 
         // Setup Results Table.
         ui_ResultsTable.managedProperty().bind(ui_ResultsTable.visibleProperty());
@@ -109,14 +125,12 @@ public class Controller {
         ui_Progress.setVisible(false);
 
         // Sync selection for the 2 data list views.
-        ui_rList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
-        {
+        ui_rList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> {
             if (ui_SyncLists.isSelected() && newIndex.intValue() < measuredData.size()) {
                 ui_mList.getSelectionModel().clearAndSelect(newIndex.intValue());
             }
         });
-        ui_mList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
-        {
+        ui_mList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> {
             if (ui_SyncLists.isSelected() && newIndex.intValue() < referenceData.size()) {
                 ui_rList.getSelectionModel().clearAndSelect(newIndex.intValue());
             }
@@ -125,42 +139,13 @@ public class Controller {
         // Setup selection changed events for both data lists.
         ui_mList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
-
-            ui_ProfileGraph.getData().remove(measuredSeries);
             currentMeasuredProfile = newValue;
-
-            if (newValue != null) {
-                measuredSeries = new XYChart.Series<>();
-                measuredSeries.setName("Measured");
-                ui_ProfileGraph.getData().add(measuredSeries);
-
-                Profile p = newValue.getProfile();
-                for (int i = 0; i < p.getX().size(); i++) {
-                    measuredSeries.getData().add(new XYChart.Data<>(p.getX().get(i), p.getY().get(i)));
-                }
-            }
-
-            calcAnalysis();
+            updateOnScreenGraphs();
         });
-
         ui_rList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             System.out.println("ListView selection changed from oldValue = " + oldValue + " to newValue = " + newValue);
-
-            ui_ProfileGraph.getData().remove(referenceSeries);
             currentReferenceProfile = newValue;
-
-            if (newValue != null) {
-                referenceSeries = new XYChart.Series<>();
-                referenceSeries.setName("Reference");
-                ui_ProfileGraph.getData().add(referenceSeries);
-
-                Profile p = newValue.getProfile();
-                for (int i = 0; i < p.getX().size(); i++) {
-                    referenceSeries.getData().add(new XYChart.Data<>(p.getX().get(i), p.getY().get(i)));
-                }
-            }
-
-            calcAnalysis();
+            updateOnScreenGraphs();
         });
 
         // Setup zooming for the main graph.
@@ -170,49 +155,40 @@ public class Controller {
         ui_chartPane.getChildren().add(zoomRect);
         setUpZooming(zoomRect, ui_ProfileGraph);
         ui_resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
+
+        //loadTestData();
+    }
+
+    private void loadTestData() {
+        File testDirectory = new File("TestData/");
+        FileFilter filter = new WildcardFileFilter("*.csv");
+        File[] files = testDirectory.listFiles(filter);
+
+        if (files != null && files.length > 0) {
+            loadData(Arrays.asList(files), referenceData);
+            loadData(Arrays.asList(files), measuredData);
+        }
     }
 
     @FXML
     private void handleAddMeasuredButtonAction(ActionEvent event) {
-        loadData((Node)event.getSource(), measuredData);
+        Node source = (Node) event.getSource();
+        final Window theStage = source.getScene().getWindow();
+        final List<File> list = fileChooser.showOpenMultipleDialog(theStage);
+        loadData(list, measuredData);
     }
 
     @FXML
     private void handleAddReferenceButtonAction(ActionEvent event) {
-        loadData((Node)event.getSource(), referenceData);
-    }
-
-    private void loadData(Node source, ObservableList<MeasurementFile> uiTarget)
-    {
+        Node source = (Node) event.getSource();
         final Window theStage = source.getScene().getWindow();
         final List<File> list = fileChooser.showOpenMultipleDialog(theStage);
-        if (list != null) {
-            Task<ArrayList<MeasurementFile>> readDataTask = new Task<ArrayList<MeasurementFile>>(){
-                @Override protected ArrayList<MeasurementFile> call(){
-                    ArrayList<MeasurementFile> results = new ArrayList<>();
-                    for (int i = 0; i < list.size(); i++)
-                    {
-                        if(isCancelled()) {
-                            break;
-                        }
+        loadData(list, referenceData);
+    }
 
-                        MeasurementFile fileToAdd = TemsReader.ReadInProfiles(list.get(i).getPath());
-                        if (fileToAdd != null) {
-                            results.add(fileToAdd);
-                        }
-
-                        updateProgress(i, list.size());
-                    }
-                    return  results;
-                }};
-
-            ui_Progress.visibleProperty().bind(readDataTask.runningProperty());
-            ui_Progress.progressProperty().bind(readDataTask.progressProperty());
-            readDataTask.setOnSucceeded(stateEvent -> uiTarget.addAll(readDataTask.getValue()));
-
-            Thread tread = new Thread(readDataTask);
-            tread.start();
-        }
+    @FXML
+    private void handleReportButtonAction(ActionEvent event) {
+        generateReport();
     }
 
     @FXML
@@ -267,9 +243,45 @@ public class Controller {
         }
     }
 
-    private void calcAnalysis() {
-        ui_ProfileGraph.getData().remove(gammaSeries);
-        ui_AnalysisGraph.getData().remove(ratioSeries);
+    private void loadData(List<File> source, ObservableList<MeasurementFile> target) {
+        if (source != null) {
+            Task<ArrayList<MeasurementFile>> readDataTask = new Task<ArrayList<MeasurementFile>>() {
+                @Override
+                protected ArrayList<MeasurementFile> call() {
+                    ArrayList<MeasurementFile> results = new ArrayList<>();
+                    for (int i = 0; i < source.size(); i++) {
+                        if (isCancelled()) {
+                            break;
+                        }
+
+                        MeasurementFile fileToAdd = TemsReader.ReadInProfiles(source.get(i).getPath());
+                        if (fileToAdd != null) {
+                            results.add(fileToAdd);
+                        }
+
+                        updateProgress(i, source.size());
+                    }
+                    return results;
+                }
+            };
+
+            ui_Progress.visibleProperty().bind(readDataTask.runningProperty());
+            ui_Progress.progressProperty().bind(readDataTask.progressProperty());
+            readDataTask.setOnSucceeded(stateEvent -> {
+                ArrayList<MeasurementFile> result = readDataTask.getValue();
+                target.addAll(result);
+                FXCollections.sort(target);
+            });
+
+            Thread tread = new Thread(readDataTask);
+            tread.start();
+        }
+    }
+
+    private void updateOnScreenGraphs() {
+        // Cleanup the existing analysis.
+        ui_ProfileGraph.getData().clear();
+        ui_AnalysisGraph.getData().clear();
         ui_ResultsTable.clear();
 
         // Check if profiles exist.
@@ -279,53 +291,25 @@ public class Controller {
             return;
         }
 
-        // Check if profile orientations match
-        if (currentReferenceProfile.getOrientation() != currentMeasuredProfile.getOrientation()) {
+        Profile analysisProfile = buildGraphs(currentReferenceProfile, currentMeasuredProfile, ui_ProfileGraph, ui_AnalysisGraph);
+
+        if (analysisProfile == null) {
             ui_ResultsTable.setVisible(false);
             ui_AnalysisGraph.setVisible(false);
             return;
         }
 
-        // Do analysis for 2 PDDs.
-        if (currentReferenceProfile.getOrientation() == ProfileOrientation.DepthDose && currentMeasuredProfile.getOrientation() == ProfileOrientation.DepthDose) {
-            Profile ratio = ProfileUtilities.calcRatio(currentReferenceProfile.getProfile(), currentMeasuredProfile.getProfile());
-
-            if (ratio == null) {
-                return;
-            }
-
-            ratioSeries = new XYChart.Series<>();
-            ratioSeries.setName("Ratio");
-            ui_AnalysisGraph.getData().add(ratioSeries);
-
-            for (int i = 0; i < ratio.getX().size(); i++) {
-                ratioSeries.getData().add(new XYChart.Data<>(ratio.getX().get(i), ratio.getY().get(i)));
-            }
-
+        // Setup view for PDD analysis
+        if (currentReferenceProfile.getOrientation() == ProfileOrientation.PDD && currentMeasuredProfile.getOrientation() == ProfileOrientation.PDD) {
             ui_AnalysisGraph.setVisible(true);
             return;
         }
 
-        // Do analysis for 2 matching Horizontal Profiles.
+        // Setup view for Profile Analysis and build text information.
         if (currentReferenceProfile.getOrientation() == currentMeasuredProfile.getOrientation()) {
             ui_AnalysisGraph.setVisible(false);
 
-            double distanceToAgreement = currentReferenceProfile.getOrientation() == ProfileOrientation.Lateral ? 1.0 : 0.1;
-            Profile gamma = ProfileUtilities.calcGamma(currentReferenceProfile.getProfile(), currentMeasuredProfile.getProfile(), distanceToAgreement, 0.02);
-
-            if (gamma == null) {
-                return;
-            }
-
-            gammaSeries = new XYChart.Series<>();
-            gammaSeries.setName("Gamma");
-            ui_ProfileGraph.getData().add(gammaSeries);
-
-            for (int i = 0; i < gamma.getX().size(); i++) {
-                gammaSeries.getData().add(new XYChart.Data<>(gamma.getX().get(i), gamma.getY().get(i)));
-            }
-
-            ResultsFile results = new ResultsFile(currentReferenceProfile, currentMeasuredProfile, gamma);
+            ResultsFile results = new ResultsFile(currentReferenceProfile, currentMeasuredProfile, analysisProfile);
             String resultsTxt = results.getResults();
             int numberOfLines = resultsTxt.split("\n").length;
 
@@ -335,6 +319,260 @@ public class Controller {
             ui_ResultsTable.setText(resultsTxt);
             ui_ResultsTable.setVisible(true);
         }
+    }
+
+    /**
+     * Takes the two input MeasurementFiles and builds the input graphs depending on the type of profile.
+     *
+     * @param referenceProfile
+     * @param measuredProfile
+     * @param profileGraph
+     * @param analysisGraph
+     * @return returns the analysis profile built from the two input measurementFiles. If PDD the analysis is a ratio otherwise its a Gamma profile.
+     */
+    private Profile buildGraphs(MeasurementFile referenceProfile, MeasurementFile measuredProfile, LineChart<Number, Number> profileGraph, LineChart<Number, Number> analysisGraph) {
+
+        // Check if profile orientations match and return with null if not.
+        if (referenceProfile.getOrientation() != measuredProfile.getOrientation()) {
+            return null;
+        }
+
+        // Build measured data series
+        LineChart.Series<Number, Number> measuredSeries = new XYChart.Series<>();
+        measuredSeries.setName("Measured");
+        profileGraph.getData().add(measuredSeries);
+
+        Profile m = measuredProfile.getProfile();
+        for (int i = 0; i < m.getX().size(); i++) {
+            measuredSeries.getData().add(new XYChart.Data<>(m.getX().get(i), m.getY().get(i)));
+        }
+
+        // Build reference data series
+        LineChart.Series<Number, Number> referenceSeries = new XYChart.Series<>();
+        referenceSeries.setName("Reference");
+        profileGraph.getData().add(referenceSeries);
+
+        Profile r = referenceProfile.getProfile();
+        for (int i = 0; i < r.getX().size(); i++) {
+            referenceSeries.getData().add(new XYChart.Data<>(r.getX().get(i), r.getY().get(i)));
+        }
+
+        LineChart.Series<Number, Number> analysisSeries = new XYChart.Series<>();
+        Profile analysisProfile = null;
+
+        // Do analysis for 2 PDDs.
+        if (referenceProfile.getOrientation() == ProfileOrientation.PDD && measuredProfile.getOrientation() == ProfileOrientation.PDD) {
+            analysisProfile = ProfileUtilities.calcRatio(r, m);
+
+            analysisSeries.setName("Ratio");
+            analysisGraph.getData().add(analysisSeries);
+        } else if (referenceProfile.getOrientation() == measuredProfile.getOrientation()) {
+            double distanceToAgreement = referenceProfile.getOrientation() == ProfileOrientation.Lat ? 1.0 : 0.1;
+            analysisProfile = ProfileUtilities.calcGamma(r, m, distanceToAgreement, 0.02);
+
+            analysisSeries.setName("Gamma");
+            profileGraph.getData().add(analysisSeries);
+        } else {
+            // TODO better null handling.
+            return null;
+        }
+
+        for (int i = 0; i < analysisProfile.getX().size(); i++) {
+            analysisSeries.getData().add(new XYChart.Data<>(analysisProfile.getX().get(i), analysisProfile.getY().get(i)));
+        }
+
+        return analysisProfile;
+    }
+
+    private void generateReportWithProgressBar() {
+        ProgressForm progressForm = new ProgressForm();
+
+
+        PDDocument report = new PDDocument();
+        String path = "/Users/griffo/Desktop/output.pdf";
+        int sizeOfArray = Math.min(measuredData.size(), referenceData.size());
+
+        // Create the main Profile graphic surface.
+        LineChart<Number, Number> tProfiles = new LineChart<>(new NumberAxis(), new NumberAxis());
+        tProfiles.getXAxis().setLabel("Position (mm)");
+        tProfiles.getYAxis().setLabel("Relative Height / Gamma Value");
+        tProfiles.setCreateSymbols(false);
+        tProfiles.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
+        tProfiles.setAnimated(false);
+
+
+        // Create the analysis graphic surface.
+        LineChart<Number, Number> aProfiles = new LineChart<>(new NumberAxis(), new NumberAxis(0.95, 1.05, 0.01));
+        aProfiles.getXAxis().setLabel("Depth (mm)");
+        aProfiles.getYAxis().setLabel("Ratio (Measured / Reference)");
+        aProfiles.setCreateSymbols(false);
+        aProfiles.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
+        aProfiles.setAnimated(false);
+
+        float paperWidth = PDRectangle.A4.getHeight();
+        float paperHeight = PDRectangle.A4.getWidth();
+
+
+        Task<Void> task = new Task<Void>() {
+            @Override
+            protected Void call() throws Exception {
+                for (int i = 0; i < sizeOfArray; i++) {
+                    tProfiles.getData().clear();
+                    aProfiles.getData().clear();
+
+                    MeasurementFile referenceProfile = referenceData.get(i);
+                    MeasurementFile measuredProfile = measuredData.get(i);
+                    Profile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
+
+                    if (analysisProfile == null) {
+                        continue;
+                    }
+
+                    String chartTitle = referenceProfile.toString();
+                    aProfiles.setTitle(chartTitle);
+                    tProfiles.setTitle(chartTitle);
+
+                    try {
+                        Scene profileScene = new Scene(tProfiles, 1400, 1000);
+                        WritableImage profileSnapshot = tProfiles.snapshot(null, null);
+
+                        PDPage graphPage = new PDPage(new PDRectangle(paperWidth, paperHeight));
+                        report.addPage(graphPage);
+                        saveImageToPDFPage(profileSnapshot, report, graphPage);
+
+                        if (referenceProfile.getOrientation() == ProfileOrientation.PDD) {
+                            PDPage analysisPage = new PDPage(new PDRectangle(paperWidth, paperHeight));
+                            report.addPage(analysisPage);
+
+                            Scene analysisScene = new Scene(aProfiles, 1400, 1000);
+                            WritableImage analysisSnapshot = aProfiles.snapshot(null, null);
+
+                            saveImageToPDFPage(analysisSnapshot, report, analysisPage);
+                        }
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                    updateProgress(i, sizeOfArray);
+                }
+
+                try {
+                    report.save(path);
+                    report.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                return null;
+            }
+        };
+
+        progressForm.activateProgressBar(task);
+        task.setOnSucceeded(event -> {
+            progressForm.getDialogStage().close();
+        });
+
+        progressForm.getDialogStage().show();
+
+        Thread thread = new Thread(task);
+        thread.start();
+    }
+
+    private void generateReport() {
+        PDDocument report = new PDDocument();
+        String path = "/Users/griffo/Desktop/output.pdf";
+        int sizeOfArray = Math.min(measuredData.size(), referenceData.size());
+
+        // Create the main Profile graphic surface.
+        LineChart<Number, Number> tProfiles = new LineChart<>(new NumberAxis(), new NumberAxis());
+        tProfiles.getXAxis().setLabel("Position (mm)");
+        tProfiles.getYAxis().setLabel("Relative Height / Gamma Value");
+        tProfiles.setCreateSymbols(false);
+        tProfiles.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
+        tProfiles.setAnimated(false);
+        Scene profileScene = new Scene(tProfiles, 1400, 1000);
+
+
+        // Create the analysis graphic surface.
+        LineChart<Number, Number> aProfiles = new LineChart<>(new NumberAxis(), new NumberAxis(0.95, 1.05, 0.01));
+        aProfiles.getXAxis().setLabel("Depth (mm)");
+        aProfiles.getYAxis().setLabel("Ratio (Measured / Reference)");
+        aProfiles.setCreateSymbols(false);
+        aProfiles.setAxisSortingPolicy(LineChart.SortingPolicy.NONE);
+        aProfiles.setAnimated(false);
+        Scene analysisScene = new Scene(aProfiles, 1400, 1000);
+
+        float paperWidth = PDRectangle.A4.getHeight();
+        float paperHeight = PDRectangle.A4.getWidth();
+        PDRectangle paperSize = new PDRectangle(paperWidth, paperHeight);
+
+        for (int i = 0; i < sizeOfArray; i++) {
+            tProfiles.getData().clear();
+            aProfiles.getData().clear();
+
+            MeasurementFile referenceProfile = referenceData.get(i);
+            MeasurementFile measuredProfile = measuredData.get(i);
+            Profile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
+
+            if (analysisProfile == null) {
+                continue;
+            }
+
+            String chartTitle = referenceProfile.toString();
+            aProfiles.setTitle(chartTitle);
+            tProfiles.setTitle(chartTitle);
+
+            try {
+                WritableImage profileSnapshot = tProfiles.snapshot(null, null);
+                PDPage graphPage = new PDPage(paperSize);
+                report.addPage(graphPage);
+                saveImageToPDFPage(profileSnapshot, report, graphPage);
+
+                if (referenceProfile.getOrientation() == ProfileOrientation.PDD) {
+                    PDPage analysisPage = new PDPage(paperSize);
+                    report.addPage(analysisPage);
+
+                    WritableImage analysisSnapshot = aProfiles.snapshot(null, null);
+                    saveImageToPDFPage(analysisSnapshot, report, analysisPage);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            report.save(path);
+            report.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void saveImageToPDFPage(WritableImage image, PDDocument document, PDPage page) throws IOException {
+        // Create our PDF image object.
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        ImageIO.write(bufferedImage, "png", stream);
+        PDImageXObject pdImage = PDImageXObject.createFromByteArray(document, stream.toByteArray(), "image-1");
+
+        // Write the image object to the PDF document.
+        PDPageContentStream contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true);
+
+        int boarder = 20;
+        double pageWidth = PDRectangle.A4.getHeight() - (2.0 * boarder);
+        double pageHeight = PDRectangle.A4.getWidth() - (2.0 * boarder);
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+
+        double scale = Math.min(pageHeight / imageHeight, pageWidth / imageWidth);
+        int printWidth = (int) (imageWidth * scale);
+        int printHeight = (int) (imageHeight * scale);
+
+        contentStream.drawImage(pdImage, boarder, boarder, printWidth, printHeight);
+        contentStream.close();
+        stream.close();
     }
 
     private void setUpZooming(final Rectangle rect, final Node zoomingNode) {
@@ -424,5 +662,42 @@ public class Controller {
         yAxis.setAutoRanging(true);
         final NumberAxis xAxis = (NumberAxis) chart.getXAxis();
         xAxis.setAutoRanging(true);
+    }
+
+    public static class ProgressForm {
+        private final Stage dialogStage;
+        private final ProgressBar pb = new ProgressBar();
+        private final ProgressIndicator pin = new ProgressIndicator();
+
+        public ProgressForm() {
+            dialogStage = new Stage();
+            dialogStage.initStyle(StageStyle.UTILITY);
+            dialogStage.setResizable(false);
+            dialogStage.initModality(Modality.APPLICATION_MODAL);
+
+            final Label label = new Label();
+            label.setText("alerto");
+
+            pb.setProgress(-1F);
+            pin.setProgress(-1F);
+
+            final HBox hb = new HBox();
+            hb.setSpacing(5);
+            hb.setAlignment(Pos.CENTER);
+            hb.getChildren().addAll(pb, pin);
+
+            Scene scene = new Scene(hb);
+            dialogStage.setScene(scene);
+        }
+
+        public void activateProgressBar(final Task<?> task) {
+            pb.progressProperty().bind(task.progressProperty());
+            pin.progressProperty().bind(task.progressProperty());
+            dialogStage.show();
+        }
+
+        public Stage getDialogStage() {
+            return dialogStage;
+        }
     }
 }
