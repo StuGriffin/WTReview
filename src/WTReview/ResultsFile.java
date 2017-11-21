@@ -25,15 +25,14 @@ package WTReview;
 import java.util.Collections;
 
 class ResultsFile {
-    private final MeasurementFile measuredProfile;
-    private final MeasurementFile referenceProfile;
-    private final Profile gammaProfile;
+    private final Profile measuredProfile;
+    private final Profile referenceProfile;
+    private final SimpleProfile gammaProfile;
 
-    public ResultsFile(MeasurementFile referenceProfile, MeasurementFile measuredProfile, Profile gamma) {
+    public ResultsFile(Profile referenceProfile, Profile measuredProfile, SimpleProfile gamma) {
         this.referenceProfile = referenceProfile;
         this.measuredProfile = measuredProfile;
-
-        gammaProfile = gamma;
+        this.gammaProfile = gamma;
     }
 
     public String getResults() {
@@ -43,8 +42,8 @@ class ResultsFile {
         }
 
         if (referenceProfile.getOrientation() != ProfileOrientation.PDD) {
-            double referenceWidth = referenceProfile.findProfileWidth();
-            double measuredWidth = measuredProfile.findProfileWidth();
+            double referenceWidth = ProfileUtilities.findProfileWidth(referenceProfile);
+            double measuredWidth = ProfileUtilities.findProfileWidth(measuredProfile);
             double widthDifference = measuredWidth - referenceWidth;
             double widthDifferencePercentage = (widthDifference / referenceWidth) * 100;
             double maxGamma = Collections.max(gammaProfile.getY());

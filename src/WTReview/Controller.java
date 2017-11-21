@@ -68,12 +68,12 @@ public class Controller {
 
 
     private final FileChooser fileChooser = new FileChooser();
-    private final ObservableList<MeasurementFile> measuredData = FXCollections.observableArrayList();
-    private final ObservableList<MeasurementFile> referenceData = FXCollections.observableArrayList();
+    private final ObservableList<Profile> measuredData = FXCollections.observableArrayList();
+    private final ObservableList<Profile> referenceData = FXCollections.observableArrayList();
     @FXML
-    private ListView<MeasurementFile> ui_mList;
+    private ListView<Profile> ui_mList;
     @FXML
-    private ListView<MeasurementFile> ui_rList;
+    private ListView<Profile> ui_rList;
     @FXML
     private LineChart<Number, Number> ui_ProfileGraph;
     @FXML
@@ -91,8 +91,8 @@ public class Controller {
     @FXML
     private Button ui_reportBtn;
 
-    private MeasurementFile currentReferenceProfile;
-    private MeasurementFile currentMeasuredProfile;
+    private Profile currentReferenceProfile;
+    private Profile currentMeasuredProfile;
 
     @FXML
     private void initialize() {
@@ -243,12 +243,26 @@ public class Controller {
         }
     }
 
-    private void loadData(List<File> source, ObservableList<MeasurementFile> target) {
+    @FXML
+    private void handleReferenceClear() {
+        clearList(referenceData);
+    }
+
+    @FXML
+    private void handleMeasuredClear() {
+        clearList(measuredData);
+    }
+
+    private void clearList(ObservableList<Profile> listToClear) {
+        listToClear.clear();
+    }
+
+    private void loadData(List<File> source, ObservableList<Profile> target) {
         if (source != null) {
-            Task<ArrayList<MeasurementFile>> readDataTask = new Task<ArrayList<MeasurementFile>>() {
+            Task<ArrayList<Profile>> readDataTask = new Task<ArrayList<Profile>>() {
                 @Override
-                protected ArrayList<MeasurementFile> call() {
-                    ArrayList<MeasurementFile> results = new ArrayList<>();
+                protected ArrayList<Profile> call() {
+                    ArrayList<Profile> results = new ArrayList<>();
                     for (int i = 0; i < source.size(); i++) {
                         if (isCancelled()) {
                             break;
@@ -256,7 +270,12 @@ public class Controller {
 
                         MeasurementFile fileToAdd = TemsReader.ReadInProfiles(source.get(i).getPath());
                         if (fileToAdd != null) {
-                            results.add(fileToAdd);
+
+                            for (Profile profile : fileToAdd.getProfiles()) {
+                                if (profile.getOrientation() == ProfileOrientation.PDD || profile.getDepth() == 15.0) {
+                                    results.add(profile);
+                                }
+                            }
                         }
 
                         updateProgress(i, source.size());
@@ -268,7 +287,7 @@ public class Controller {
             ui_Progress.visibleProperty().bind(readDataTask.runningProperty());
             ui_Progress.progressProperty().bind(readDataTask.progressProperty());
             readDataTask.setOnSucceeded(stateEvent -> {
-                ArrayList<MeasurementFile> result = readDataTask.getValue();
+                ArrayList<Profile> result = readDataTask.getValue();
                 target.addAll(result);
                 FXCollections.sort(target);
             });
@@ -291,7 +310,7 @@ public class Controller {
             return;
         }
 
-        Profile analysisProfile = buildGraphs(currentReferenceProfile, currentMeasuredProfile, ui_ProfileGraph, ui_AnalysisGraph);
+        SimpleProfile analysisProfile = buildGraphs(currentReferenceProfile, currentMeasuredProfile, ui_ProfileGraph, ui_AnalysisGraph);
 
         if (analysisProfile == null) {
             ui_ResultsTable.setVisible(false);
@@ -330,7 +349,7 @@ public class Controller {
      * @param analysisGraph
      * @return returns the analysis profile built from the two input measurementFiles. If PDD the analysis is a ratio otherwise its a Gamma profile.
      */
-    private Profile buildGraphs(MeasurementFile referenceProfile, MeasurementFile measuredProfile, LineChart<Number, Number> profileGraph, LineChart<Number, Number> analysisGraph) {
+    private SimpleProfile buildGraphs(Profile referenceProfile, Profile measuredProfile, LineChart<Number, Number> profileGraph, LineChart<Number, Number> analysisGraph) {
 
         // Check if profile orientations match and return with null if not.
         if (referenceProfile.getOrientation() != measuredProfile.getOrientation()) {
@@ -342,7 +361,7 @@ public class Controller {
         measuredSeries.setName("Measured");
         profileGraph.getData().add(measuredSeries);
 
-        Profile m = measuredProfile.getProfile();
+        Profile m = measuredProfile;
         for (int i = 0; i < m.getX().size(); i++) {
             measuredSeries.getData().add(new XYChart.Data<>(m.getX().get(i), m.getY().get(i)));
         }
@@ -352,13 +371,13 @@ public class Controller {
         referenceSeries.setName("Reference");
         profileGraph.getData().add(referenceSeries);
 
-        Profile r = referenceProfile.getProfile();
+        Profile r = referenceProfile;
         for (int i = 0; i < r.getX().size(); i++) {
             referenceSeries.getData().add(new XYChart.Data<>(r.getX().get(i), r.getY().get(i)));
         }
 
         LineChart.Series<Number, Number> analysisSeries = new XYChart.Series<>();
-        Profile analysisProfile = null;
+        SimpleProfile analysisProfile = null;
 
         // Do analysis for 2 PDDs.
         if (referenceProfile.getOrientation() == ProfileOrientation.PDD && measuredProfile.getOrientation() == ProfileOrientation.PDD) {
@@ -420,9 +439,9 @@ public class Controller {
                     tProfiles.getData().clear();
                     aProfiles.getData().clear();
 
-                    MeasurementFile referenceProfile = referenceData.get(i);
-                    MeasurementFile measuredProfile = measuredData.get(i);
-                    Profile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
+                    Profile referenceProfile = referenceData.get(i);
+                    Profile measuredProfile = measuredData.get(i);
+                    SimpleProfile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
 
                     if (analysisProfile == null) {
                         continue;
@@ -511,9 +530,9 @@ public class Controller {
             tProfiles.getData().clear();
             aProfiles.getData().clear();
 
-            MeasurementFile referenceProfile = referenceData.get(i);
-            MeasurementFile measuredProfile = measuredData.get(i);
-            Profile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
+            Profile referenceProfile = referenceData.get(i);
+            Profile measuredProfile = measuredData.get(i);
+            SimpleProfile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
 
             if (analysisProfile == null) {
                 continue;

@@ -40,6 +40,8 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
     private final ArrayList<MeasurementPoint> data;
     private final int fieldWidth;
 
+    private final ArrayList<Profile> profiles = new ArrayList<>();
+
     MeasurementFile(Path fileName, boolean isLateral, Boolean[] channels, boolean isPDD, ArrayList<MeasurementPoint> data) {
         this.fileName = fileName;
         this.enabledChannels = channels;
@@ -47,8 +49,31 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
         this.orientation = getProfileOrientation(isPDD, isLateral);
         this.depths = data.stream().map(MeasurementPoint::getVerticalPos).distinct().collect(Collectors.toList());
         this.fieldWidth = estimateFieldWidth(fileName);
+
+        buildProfiles();
     }
 
+    private void buildProfiles() {
+
+        int firstEnabledChannel = Arrays.asList(enabledChannels).indexOf(true);
+
+        if (orientation == ProfileOrientation.PDD) {
+            Profile rawProfile = getRawProfile(-1, firstEnabledChannel);
+            if (rawProfile != null) {
+                profiles.add(rawProfile);
+            }
+            return;
+        }
+
+        for (Double depth : depths) {
+            Profile rawProfile = getRawProfile(depth, firstEnabledChannel);
+            if (rawProfile != null) {
+                profiles.add(rawProfile);
+            }
+        }
+    }
+
+    // Todo - Cleanup, I've already moved this to the "Profile" class.
     private int estimateFieldWidth(Path fileName) {
 
         String file = fileName.toString();
@@ -65,12 +90,12 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
         } else return -1;
     }
 
-    public ProfileOrientation getOrientation() {
-        return orientation;
+    ArrayList<Profile> getProfiles() {
+        return profiles;
     }
 
-    public int getProfileFieldWidth() {
-        return fieldWidth;
+    public ProfileOrientation getOrientation() {
+        return orientation;
     }
 
     Profile getProfile() {
@@ -83,6 +108,76 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
         double xSpacing = orientation == ProfileOrientation.Long ? 0.1 : 0.5;
         xSpacing = orientation == ProfileOrientation.PDD ? 1 : xSpacing;
         return getProfile(depth, primaryChannel, true, true, true, xSpacing);
+    }
+
+    private Profile getRawProfile(double depth, int primaryChannel) {
+        ArrayList<Double> xValues = new ArrayList<>();
+        ArrayList<Double> yValues = new ArrayList<>();
+
+        if (orientation == ProfileOrientation.PDD) {
+            xValues.addAll(data.stream().map(MeasurementPoint::getVerticalPos).collect(Collectors.toList()));
+            switch (primaryChannel) {
+                case 0:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel1).collect(Collectors.toList()));
+                    break;
+                case 1:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel2).collect(Collectors.toList()));
+                    break;
+                case 2:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel3).collect(Collectors.toList()));
+                    break;
+                case 3:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel4).collect(Collectors.toList()));
+                    break;
+                case 4:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel5).collect(Collectors.toList()));
+                    break;
+                case 5:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel6).collect(Collectors.toList()));
+                    break;
+                case 6:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel7).collect(Collectors.toList()));
+                    break;
+                case 7:
+                    yValues.addAll(data.stream().map(MeasurementPoint::getChannel8).collect(Collectors.toList()));
+                    break;
+            }
+        } else {
+            xValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getLateralPos).collect(Collectors.toList()));
+            switch (primaryChannel) {
+                case 0:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel1).collect(Collectors.toList()));
+                    break;
+                case 1:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel2).collect(Collectors.toList()));
+                    break;
+                case 2:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel3).collect(Collectors.toList()));
+                    break;
+                case 3:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel4).collect(Collectors.toList()));
+                    break;
+                case 4:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel5).collect(Collectors.toList()));
+                    break;
+                case 5:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel6).collect(Collectors.toList()));
+                    break;
+                case 6:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel7).collect(Collectors.toList()));
+                    break;
+                case 7:
+                    yValues.addAll(data.stream().filter(y -> y.getVerticalPos() == depth).map(MeasurementPoint::getChannel8).collect(Collectors.toList()));
+                    break;
+            }
+        }
+
+        try {
+            return new Profile(xValues, yValues, fileName.toString(), orientation, depth);
+        } catch (Exception e) {
+            // TODO improve error handling with profile generation!
+            return null;
+        }
     }
 
     private Profile getProfile(double depth, int primaryChannel, boolean normalise, boolean centre, boolean resample, double newSpacing) {
@@ -303,24 +398,19 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
         }
     }
 
-    double findProfileWidth() {
-        Profile profile = getProfile();
-        double percentageHeight = orientation == ProfileOrientation.Long ? 0.5 : 0.25;
-        int centerIndex = findProfileCenterIndex(profile.getY(), percentageHeight);
-        double leadingEdge = findProfileEdge(profile.getX(), profile.getY(), 0, percentageHeight);
-        double trailingEdge = findProfileEdge(profile.getX(), profile.getY(), centerIndex, percentageHeight);
-        return Math.abs(trailingEdge - leadingEdge);
-    }
-
     @Override
     public String toString() {
         String field = fieldWidth > 0 ? Double.toString(fieldWidth) + "mm" : fileName.toString();
         String position = findProfilePosition();
-        return String.format("%s Profile - %s %s", orientation, field, position);
+        return String.format("%s - %s %s", orientation, field, position);
     }
 
     @Override
     public int compareTo(MeasurementFile other) {
-        return Integer.compare(this.fieldWidth + this.orientation.getValue(), other.fieldWidth + other.orientation.getValue());
+
+        int thisSize = this.fieldWidth + this.orientation.getValue();
+        int otherSize = other.fieldWidth + other.orientation.getValue();
+
+        return Integer.compare(thisSize, otherSize);
     }
 }

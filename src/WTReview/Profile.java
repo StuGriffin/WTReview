@@ -22,12 +22,23 @@
 
 package WTReview;
 
-import java.util.ArrayList;
+import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 
-public class Profile {
+import java.util.ArrayList;
+import java.util.Collections;
+
+import static WTReview.ProfileUtilities.*;
+
+public class Profile implements Comparable<Profile> {
 
     private final ArrayList<Double> xValues;
     private final ArrayList<Double> yValues;
+    private String fileName;
+    private Double depth;
+    private int nominalFieldWidth;
+    private ProfileOrientation orientation;
+    private ProfilePosition position;
 
     Profile(ArrayList<Double> xValues, ArrayList<Double> yValues) {
 
@@ -40,11 +51,76 @@ public class Profile {
         this.yValues = yValues;
     }
 
-    public ArrayList<Double> getX() {
-        return xValues;
+    Profile(ArrayList<Double> xValues, ArrayList<Double> yValues, String fileName, ProfileOrientation orientation, Double depth) {
+        if (xValues.size() != yValues.size()) {
+            throw new IllegalArgumentException(String.format("The input dimensions are not equal, x: %s, y: %s", xValues.size(), yValues.size()));
+        }
+
+        // Check the profile is increasing in x and if not reverse it.
+        if (xValues.get(0) > xValues.get(xValues.size() - 1)) {
+            Collections.reverse(xValues);
+            Collections.reverse(yValues);
+        }
+
+        this.fileName = fileName;
+        this.orientation = orientation;
+        this.depth = depth;
+        this.nominalFieldWidth = estimateFieldWidth(fileName);
+        this.position = estimateProfilePosition(orientation, xValues, yValues);
+        this.xValues = getCentredX(orientation, xValues, yValues);
+        this.yValues = normaliseProfile(yValues);
     }
 
     public ArrayList<Double> getY() {
         return yValues;
     }
+
+    public ArrayList<Double> getX() {
+        return xValues;
+    }
+
+    public ProfileOrientation getOrientation() {
+        return orientation;
+    }
+
+    ArrayList<Double> getResampleY(ArrayList<Double> xValues) {
+        double[] x = this.getX().stream().mapToDouble(p -> p).toArray();
+        double[] y = this.getY().stream().mapToDouble(p -> p).toArray();
+
+        LinearInterpolator interpolation = new LinearInterpolator();
+        PolynomialSplineFunction interpolationFunction = interpolation.interpolate(x, y);
+
+        ArrayList<Double> newY = new ArrayList<>();
+
+        for (Double xValue : xValues) {
+            newY.add(interpolationFunction.value(xValue));
+        }
+
+        return newY;
+    }
+
+    @Override
+    public String toString() {
+        if (nominalFieldWidth <= 0) {
+            return fileName;
+        }
+
+        if (orientation == ProfileOrientation.PDD) {
+            return String.format("%s - %smm", orientation, Double.toString(nominalFieldWidth));
+        }
+
+        return String.format("%s - %smm @ d%smm %s", orientation, Double.toString(nominalFieldWidth), Double.toString(depth), position.getDescription());
+    }
+
+    @Override
+    public int compareTo(Profile other) {
+        int thisSize = this.nominalFieldWidth + this.orientation.getValue() + this.position.getValue();
+        int otherSize = other.nominalFieldWidth + other.orientation.getValue() + other.position.getValue();
+        return Integer.compare(thisSize, otherSize);
+    }
+
+    public Double getDepth() {
+        return depth;
+    }
 }
+
