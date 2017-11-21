@@ -35,17 +35,27 @@ class TemsReader {
 
         try (Scanner reader = new Scanner(path)) {
 
-            Pattern headerPattern = Pattern.compile("\\*");
+            Pattern headerPattern = Pattern.compile(",|\\*");
             Pattern dataPattern = Pattern.compile(",");
             int correctColumn = 2;
+            String referenceStartFileString = "VERSION";
 
-            // Skip first line which should contain data information.
-            reader.nextLine();
+            String startFileCheck = "";
+            String currentLine = "";
+
+            // Skip first line(s) which should contain no relevant data information.
+            while (!startFileCheck.equals(referenceStartFileString)) {
+                currentLine = reader.nextLine();
+                String[] header = headerPattern.split(currentLine);
+                if (header.length > 1) {
+                    startFileCheck = header[1];
+                }
+            }
 
             // Check version number.
-            double version = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]);
+            double version = Double.parseDouble(headerPattern.split(currentLine)[correctColumn]);
             if (version != 1.1) {
-                // TODO cleanup error handling.
+                // TODO cleanup error handling.∂
                 return null;
             }
 
