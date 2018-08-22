@@ -83,6 +83,10 @@ public class Profile implements Comparable<Profile> {
         return orientation;
     }
 
+    public Double getDepth() {
+        return depth;
+    }
+
     ArrayList<Double> getResampleY(ArrayList<Double> xValues) {
         double[] x = this.getX().stream().mapToDouble(p -> p).toArray();
         double[] y = this.getY().stream().mapToDouble(p -> p).toArray();
@@ -117,10 +121,6 @@ public class Profile implements Comparable<Profile> {
         int thisSize = this.nominalFieldWidth + this.orientation.getValue() + this.position.getValue();
         int otherSize = other.nominalFieldWidth + other.orientation.getValue() + other.position.getValue();
         return Integer.compare(thisSize, otherSize);
-    }
-
-    public Double getDepth() {
-        return depth;
     }
 }
 

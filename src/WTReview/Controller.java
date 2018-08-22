@@ -59,17 +59,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class Controller {
 
 
     private final FileChooser fileChooser = new FileChooser();
-    private final ObservableList<Profile> measuredData = FXCollections.observableArrayList();
-    private final ObservableList<Profile> referenceData = FXCollections.observableArrayList();
+    private final ObservableList<Profile> measuredVisualData = FXCollections.observableArrayList();
+    private final ObservableList<Profile> referenceVisualData = FXCollections.observableArrayList();
+    private final ArrayList<MeasurementFile> measuredRawData = new ArrayList<>();
+    private final ArrayList<MeasurementFile> referenceRawData = new ArrayList<>();
+
     @FXML
     private ListView<Profile> ui_mList;
     @FXML
@@ -89,7 +89,12 @@ public class Controller {
     @FXML
     private ProgressIndicator ui_Progress;
     @FXML
-    private Button ui_reportBtn;
+    private ComboBox<Integer> ui_rChannelSelector;
+    @FXML
+    private ComboBox<Integer> ui_mChannelSelector;
+    @FXML
+    private ComboBox<Double> ui_depthSelector;
+
 
     private Profile currentReferenceProfile;
     private Profile currentMeasuredProfile;
@@ -101,8 +106,8 @@ public class Controller {
         ViewHelpers.setupDragDrop(ui_rList);
 
         // Setup data tables.
-        ui_mList.setItems(measuredData);
-        ui_rList.setItems(referenceData);
+        ui_mList.setItems(measuredVisualData);
+        ui_rList.setItems(referenceVisualData);
 
         // Setup Main Graph.
         ui_ProfileGraph.setCreateSymbols(false);
@@ -126,12 +131,12 @@ public class Controller {
 
         // Sync selection for the 2 data list views.
         ui_rList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> {
-            if (ui_SyncLists.isSelected() && newIndex.intValue() < measuredData.size()) {
+            if (ui_SyncLists.isSelected() && newIndex.intValue() < measuredVisualData.size()) {
                 ui_mList.getSelectionModel().clearAndSelect(newIndex.intValue());
             }
         });
         ui_mList.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> {
-            if (ui_SyncLists.isSelected() && newIndex.intValue() < referenceData.size()) {
+            if (ui_SyncLists.isSelected() && newIndex.intValue() < referenceVisualData.size()) {
                 ui_rList.getSelectionModel().clearAndSelect(newIndex.intValue());
             }
         });
@@ -156,6 +161,30 @@ public class Controller {
         setUpZooming(zoomRect, ui_ProfileGraph);
         ui_resetBtn.setOnAction(event -> doReset(ui_ProfileGraph));
 
+        // Setup channels for channel selectors
+        ArrayList<Integer> availableChannels = new ArrayList<>();
+        availableChannels.add(1);
+        availableChannels.add(2);
+        availableChannels.add(3);
+        availableChannels.add(4);
+        availableChannels.add(5);
+        availableChannels.add(6);
+        availableChannels.add(7);
+        availableChannels.add(8);
+        ui_rChannelSelector.getItems().addAll(availableChannels);
+        ui_rChannelSelector.getSelectionModel().select(0);
+        ui_mChannelSelector.getItems().addAll(availableChannels);
+        ui_mChannelSelector.getSelectionModel().select(0);
+
+        ArrayList<Double> availableDepths = new ArrayList<>();
+        availableDepths.add(15.0);
+        availableDepths.add(50.0);
+        availableDepths.add(100.0);
+        availableDepths.add(150.0);
+        availableDepths.add(200.0);
+        ui_depthSelector.getItems().addAll(availableDepths);
+        ui_depthSelector.getSelectionModel().select(0);
+
         //loadTestData();
     }
 
@@ -165,8 +194,8 @@ public class Controller {
         File[] files = testDirectory.listFiles(filter);
 
         if (files != null && files.length > 0) {
-            loadData(Arrays.asList(files), referenceData);
-            loadData(Arrays.asList(files), measuredData);
+            loadData(Arrays.asList(files), referenceVisualData, referenceRawData, ui_rChannelSelector.getSelectionModel().getSelectedItem() - 1);
+            loadData(Arrays.asList(files), measuredVisualData, measuredRawData, ui_mChannelSelector.getSelectionModel().getSelectedItem() - 1);
         }
     }
 
@@ -175,7 +204,8 @@ public class Controller {
         Node source = (Node) event.getSource();
         final Window theStage = source.getScene().getWindow();
         final List<File> list = fileChooser.showOpenMultipleDialog(theStage);
-        loadData(list, measuredData);
+        int channel = ui_mChannelSelector.getSelectionModel().getSelectedItem() - 1;
+        loadData(list, measuredVisualData, measuredRawData, channel);
     }
 
     @FXML
@@ -183,7 +213,8 @@ public class Controller {
         Node source = (Node) event.getSource();
         final Window theStage = source.getScene().getWindow();
         final List<File> list = fileChooser.showOpenMultipleDialog(theStage);
-        loadData(list, referenceData);
+        int channel = ui_rChannelSelector.getSelectionModel().getSelectedItem() - 1;
+        loadData(list, referenceVisualData, referenceRawData, channel);
     }
 
     @FXML
@@ -195,7 +226,7 @@ public class Controller {
     private void handleReferenceMoveUp() {
         int selectedIndex = ui_rList.getSelectionModel().getSelectedIndex();
         if (selectedIndex > 0) {
-            Collections.swap(referenceData, selectedIndex, selectedIndex - 1);
+            Collections.swap(referenceVisualData, selectedIndex, selectedIndex - 1);
             ui_rList.getSelectionModel().clearAndSelect(selectedIndex - 1);
         }
     }
@@ -203,8 +234,8 @@ public class Controller {
     @FXML
     private void handleReferenceMoveDown() {
         int selectedIndex = ui_rList.getSelectionModel().getSelectedIndex();
-        if (selectedIndex < referenceData.size() - 1) {
-            Collections.swap(referenceData, selectedIndex, selectedIndex + 1);
+        if (selectedIndex < referenceVisualData.size() - 1) {
+            Collections.swap(referenceVisualData, selectedIndex, selectedIndex + 1);
             ui_rList.getSelectionModel().clearAndSelect(selectedIndex + 1);
         }
     }
@@ -213,7 +244,7 @@ public class Controller {
     private void handleMeasuredMoveUp() {
         int selectedIndex = ui_mList.getSelectionModel().getSelectedIndex();
         if (selectedIndex > 0) {
-            Collections.swap(measuredData, selectedIndex, selectedIndex - 1);
+            Collections.swap(measuredVisualData, selectedIndex, selectedIndex - 1);
             ui_mList.getSelectionModel().clearAndSelect(selectedIndex - 1);
         }
     }
@@ -221,8 +252,8 @@ public class Controller {
     @FXML
     private void handleMeasuredMoveDown() {
         int selectedIndex = ui_mList.getSelectionModel().getSelectedIndex();
-        if (selectedIndex < measuredData.size() - 1) {
-            Collections.swap(measuredData, selectedIndex, selectedIndex + 1);
+        if (selectedIndex < measuredVisualData.size() - 1) {
+            Collections.swap(measuredVisualData, selectedIndex, selectedIndex + 1);
             ui_mList.getSelectionModel().clearAndSelect(selectedIndex + 1);
         }
     }
@@ -231,7 +262,7 @@ public class Controller {
     private void handleReferenceDelete() {
         int selectedIndex = ui_rList.getSelectionModel().getSelectedIndex();
         if (selectedIndex >= 0) {
-            referenceData.remove(selectedIndex);
+            referenceVisualData.remove(selectedIndex);
         }
     }
 
@@ -239,26 +270,65 @@ public class Controller {
     private void handleMeasuredDelete() {
         int selectedIndex = ui_mList.getSelectionModel().getSelectedIndex();
         if (selectedIndex >= 0) {
-            measuredData.remove(selectedIndex);
+            measuredVisualData.remove(selectedIndex);
         }
     }
 
     @FXML
     private void handleReferenceClear() {
-        clearList(referenceData);
+        referenceVisualData.clear();
+        referenceRawData.clear();
     }
 
     @FXML
     private void handleMeasuredClear() {
-        clearList(measuredData);
+        measuredRawData.clear();
+        measuredVisualData.clear();
     }
 
-    private void clearList(ObservableList<Profile> listToClear) {
-        listToClear.clear();
+    @FXML
+    private void handleMeasuredChannelChanged() {
+        measuredVisualData.clear();
+
+        for (MeasurementFile file : measuredRawData) {
+            int channel = ui_mChannelSelector.getSelectionModel().getSelectedItem() - 1;
+            measuredVisualData.addAll(getProfiles(file, channel));
+            FXCollections.sort(measuredVisualData);
+        }
     }
 
-    private void loadData(List<File> source, ObservableList<Profile> target) {
+    @FXML
+    private void handleReferenceChannelChanged() {
+        referenceVisualData.clear();
+
+        for (MeasurementFile file : referenceRawData) {
+            int channel = ui_rChannelSelector.getSelectionModel().getSelectedItem() - 1;
+            referenceVisualData.addAll(getProfiles(file, channel));
+            FXCollections.sort(referenceVisualData);
+        }
+    }
+
+    @FXML
+    private void handleDepthSelectorChanged() {
+        referenceVisualData.clear();
+        measuredVisualData.clear();
+
+        for (MeasurementFile file : referenceRawData) {
+            int channel = ui_rChannelSelector.getSelectionModel().getSelectedItem() - 1;
+            referenceVisualData.addAll(getProfiles(file, channel));
+            FXCollections.sort(referenceVisualData);
+        }
+
+        for (MeasurementFile file : measuredRawData) {
+            int channel = ui_mChannelSelector.getSelectionModel().getSelectedItem() - 1;
+            measuredVisualData.addAll(getProfiles(file, channel));
+            FXCollections.sort(measuredVisualData);
+        }
+    }
+
+    private void loadData(List<File> source, ObservableList<Profile> target, ArrayList<MeasurementFile> rawData, Integer primaryChannel) {
         if (source != null) {
+
             Task<ArrayList<Profile>> readDataTask = new Task<ArrayList<Profile>>() {
                 @Override
                 protected ArrayList<Profile> call() {
@@ -271,11 +341,8 @@ public class Controller {
                         MeasurementFile fileToAdd = TemsReader.ReadInProfiles(source.get(i).getPath());
                         if (fileToAdd != null) {
 
-                            for (Profile profile : fileToAdd.getProfiles()) {
-                                if (profile.getOrientation() == ProfileOrientation.PDD || profile.getDepth() == 15.0) {
-                                    results.add(profile);
-                                }
-                            }
+                            results.addAll(getProfiles(fileToAdd, primaryChannel));
+                            rawData.add(fileToAdd);
                         }
 
                         updateProgress(i, source.size());
@@ -295,6 +362,21 @@ public class Controller {
             Thread tread = new Thread(readDataTask);
             tread.start();
         }
+    }
+
+    private ArrayList<Profile> getProfiles(MeasurementFile source, int primaryChannel) {
+        ArrayList<Profile> results = new ArrayList<>();
+
+        for (Profile profile : source.getProfiles(primaryChannel)) {
+
+            boolean correctDepth = Objects.equals(profile.getDepth(), ui_depthSelector.getSelectionModel().getSelectedItem());
+
+            if (profile.getOrientation() == ProfileOrientation.PDD || correctDepth) {
+                results.add(profile);
+            }
+        }
+
+        return results;
     }
 
     private void updateOnScreenGraphs() {
@@ -325,19 +407,18 @@ public class Controller {
         }
 
         // Setup view for Profile Analysis and build text information.
-        if (currentReferenceProfile.getOrientation() == currentMeasuredProfile.getOrientation()) {
-            ui_AnalysisGraph.setVisible(false);
 
-            ResultsFile results = new ResultsFile(currentReferenceProfile, currentMeasuredProfile, analysisProfile);
-            String resultsTxt = results.getResults();
-            int numberOfLines = resultsTxt.split("\n").length;
+        ui_AnalysisGraph.setVisible(false);
 
-            // TODO calculate minimum height of text from resultsFile instead of guessing.
-            Text resultsText = (Text) ui_ResultsTable.lookup(".text");
-            ui_ResultsTable.setMinHeight((numberOfLines + 1) * resultsText.getBoundsInLocal().getHeight());
-            ui_ResultsTable.setText(resultsTxt);
-            ui_ResultsTable.setVisible(true);
-        }
+        ResultsFile results = new ResultsFile(currentReferenceProfile, currentMeasuredProfile, analysisProfile);
+        String resultsTxt = results.getResults();
+        int numberOfLines = resultsTxt.split("\n").length;
+
+        // TODO calculate minimum height of text from resultsFile instead of guessing.
+        Text resultsText = (Text) ui_ResultsTable.lookup(".text");
+        ui_ResultsTable.setMinHeight((numberOfLines + 1) * resultsText.getBoundsInLocal().getHeight());
+        ui_ResultsTable.setText(resultsTxt);
+        ui_ResultsTable.setVisible(true);
     }
 
     /**
@@ -385,15 +466,12 @@ public class Controller {
 
             analysisSeries.setName("Ratio");
             analysisGraph.getData().add(analysisSeries);
-        } else if (referenceProfile.getOrientation() == measuredProfile.getOrientation()) {
+        } else {
             double distanceToAgreement = referenceProfile.getOrientation() == ProfileOrientation.Lat ? 1.0 : 0.1;
             analysisProfile = ProfileUtilities.calcGamma(r, m, distanceToAgreement, 0.02);
 
             analysisSeries.setName("Gamma");
             profileGraph.getData().add(analysisSeries);
-        } else {
-            // TODO better null handling.
-            return null;
         }
 
         for (int i = 0; i < analysisProfile.getX().size(); i++) {
@@ -403,13 +481,14 @@ public class Controller {
         return analysisProfile;
     }
 
+    // TODO: Having trouble with pushing the report generation to another thread due to the reliance on the UI thread to create the graphs.
     private void generateReportWithProgressBar() {
         ProgressForm progressForm = new ProgressForm();
 
 
         PDDocument report = new PDDocument();
         String path = "/Users/griffo/Desktop/output.pdf";
-        int sizeOfArray = Math.min(measuredData.size(), referenceData.size());
+        int sizeOfArray = Math.min(measuredVisualData.size(), referenceVisualData.size());
 
         // Create the main Profile graphic surface.
         LineChart<Number, Number> tProfiles = new LineChart<>(new NumberAxis(), new NumberAxis());
@@ -434,13 +513,13 @@ public class Controller {
 
         Task<Void> task = new Task<Void>() {
             @Override
-            protected Void call() throws Exception {
+            protected Void call() {
                 for (int i = 0; i < sizeOfArray; i++) {
                     tProfiles.getData().clear();
                     aProfiles.getData().clear();
 
-                    Profile referenceProfile = referenceData.get(i);
-                    Profile measuredProfile = measuredData.get(i);
+                    Profile referenceProfile = referenceVisualData.get(i);
+                    Profile measuredProfile = measuredVisualData.get(i);
                     SimpleProfile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
 
                     if (analysisProfile == null) {
@@ -501,7 +580,7 @@ public class Controller {
     private void generateReport() {
         PDDocument report = new PDDocument();
         String path = "/Users/griffo/Desktop/output.pdf";
-        int sizeOfArray = Math.min(measuredData.size(), referenceData.size());
+        int sizeOfArray = Math.min(measuredVisualData.size(), referenceVisualData.size());
 
         // Create the main Profile graphic surface.
         LineChart<Number, Number> tProfiles = new LineChart<>(new NumberAxis(), new NumberAxis());
@@ -530,8 +609,8 @@ public class Controller {
             tProfiles.getData().clear();
             aProfiles.getData().clear();
 
-            Profile referenceProfile = referenceData.get(i);
-            Profile measuredProfile = measuredData.get(i);
+            Profile referenceProfile = referenceVisualData.get(i);
+            Profile measuredProfile = measuredVisualData.get(i);
             SimpleProfile analysisProfile = buildGraphs(referenceProfile, measuredProfile, tProfiles, aProfiles);
 
             if (analysisProfile == null) {
@@ -542,16 +621,24 @@ public class Controller {
             aProfiles.setTitle(chartTitle);
             tProfiles.setTitle(chartTitle);
 
+//            // Add the stats to the graph if a profile.
+//            if (referenceProfile.getOrientation() != ProfileOrientation.PDD && measuredProfile.getOrientation() != ProfileOrientation.PDD) {
+//                ResultsFile results = new ResultsFile(currentReferenceProfile, currentMeasuredProfile, analysisProfile);
+//                String resultsTxt = results.getResults();
+//                Label summaryTxt = new Label(resultsTxt);
+//                Pane chartContent = (Pane) tProfiles.lookup(".chart-content");
+//                chartContent.getChildren().add(summaryTxt);
+//            }
+
             try {
                 WritableImage profileSnapshot = tProfiles.snapshot(null, null);
                 PDPage graphPage = new PDPage(paperSize);
                 report.addPage(graphPage);
                 saveImageToPDFPage(profileSnapshot, report, graphPage);
 
-                if (referenceProfile.getOrientation() == ProfileOrientation.PDD) {
+                if (referenceProfile.getOrientation() == ProfileOrientation.PDD && measuredProfile.getOrientation() == ProfileOrientation.PDD) {
                     PDPage analysisPage = new PDPage(paperSize);
                     report.addPage(analysisPage);
-
                     WritableImage analysisSnapshot = aProfiles.snapshot(null, null);
                     saveImageToPDFPage(analysisSnapshot, report, analysisPage);
                 }
@@ -570,6 +657,31 @@ public class Controller {
     }
 
     private void saveImageToPDFPage(WritableImage image, PDDocument document, PDPage page) throws IOException {
+        // Create our PDF image object.
+        BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        ImageIO.write(bufferedImage, "png", stream);
+        PDImageXObject pdImage = PDImageXObject.createFromByteArray(document, stream.toByteArray(), "image-1");
+
+        // Write the image object to the PDF document.
+        PDPageContentStream contentStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true);
+
+        int boarder = 20;
+        double pageWidth = PDRectangle.A4.getHeight() - (2.0 * boarder);
+        double pageHeight = PDRectangle.A4.getWidth() - (2.0 * boarder);
+        double imageWidth = image.getWidth();
+        double imageHeight = image.getHeight();
+
+        double scale = Math.min(pageHeight / imageHeight, pageWidth / imageWidth);
+        int printWidth = (int) (imageWidth * scale);
+        int printHeight = (int) (imageHeight * scale);
+
+        contentStream.drawImage(pdImage, boarder, boarder, printWidth, printHeight);
+        contentStream.close();
+        stream.close();
+    }
+
+    private void saveImageToPDFPageWithTxt(WritableImage image, PDDocument document, PDPage page, String txt) throws IOException {
         // Create our PDF image object.
         BufferedImage bufferedImage = SwingFXUtils.fromFXImage(image, null);
         ByteArrayOutputStream stream = new ByteArrayOutputStream();

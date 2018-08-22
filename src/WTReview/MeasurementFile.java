@@ -40,7 +40,6 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
     private final ArrayList<MeasurementPoint> data;
     private final int fieldWidth;
 
-    private final ArrayList<Profile> profiles = new ArrayList<>();
 
     MeasurementFile(Path fileName, boolean isLateral, Boolean[] channels, boolean isPDD, ArrayList<MeasurementPoint> data) {
         this.fileName = fileName;
@@ -48,50 +47,39 @@ public class MeasurementFile implements Comparable<MeasurementFile> {
         this.data = data;
         this.orientation = getProfileOrientation(isPDD, isLateral);
         this.depths = data.stream().map(MeasurementPoint::getVerticalPos).distinct().collect(Collectors.toList());
-        this.fieldWidth = estimateFieldWidth(fileName);
+        this.fieldWidth = ProfileUtilities.estimateFieldWidth(fileName.getFileName().toString());
 
-        buildProfiles();
+        //buildProfiles();
     }
 
-    private void buildProfiles() {
+    private ArrayList<Profile> buildProfiles(int primaryChannel) {
 
-        int firstEnabledChannel = Arrays.asList(enabledChannels).indexOf(true);
+        ArrayList<Profile> profiles = new ArrayList<>();
+
+        if (!enabledChannels[primaryChannel]) {
+            return profiles;
+        }
 
         if (orientation == ProfileOrientation.PDD) {
-            Profile rawProfile = getRawProfile(-1, firstEnabledChannel);
+            Profile rawProfile = getRawProfile(-1, primaryChannel);
             if (rawProfile != null) {
                 profiles.add(rawProfile);
             }
-            return;
+            return profiles;
         }
 
         for (Double depth : depths) {
-            Profile rawProfile = getRawProfile(depth, firstEnabledChannel);
+            Profile rawProfile = getRawProfile(depth, primaryChannel);
             if (rawProfile != null) {
                 profiles.add(rawProfile);
             }
         }
-    }
 
-    // Todo - Cleanup, I've already moved this to the "Profile" class.
-    private int estimateFieldWidth(Path fileName) {
-
-        String file = fileName.toString();
-
-        // TODO add filter strings to properties file for easy customisation.
-        if (file.contains("1cm") || file.contains("10mm") || file.contains("J07") || file.contains("J7")) {
-            return 10;
-        } else if (file.contains("1.8cm") || file.contains("18mm") || file.contains("J14")) {
-            return 18;
-        } else if (file.contains("2.5cm") || file.contains("25mm") || file.contains("J20")) {
-            return 25;
-        } else if (file.contains("5cm") || file.contains("50mm") || file.contains("J42")) {
-            return 50;
-        } else return -1;
-    }
-
-    ArrayList<Profile> getProfiles() {
         return profiles;
+    }
+
+    ArrayList<Profile> getProfiles(int primaryChannel) {
+        return buildProfiles(primaryChannel);
     }
 
     public ProfileOrientation getOrientation() {

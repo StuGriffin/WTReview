@@ -59,8 +59,9 @@ class TemsReader {
                 return null;
             }
 
-            // Read horizontal orientation flag.
+            // Read horizontal orientation flag. TODO: Decide if I really need a horizontal orientation flag.
             Boolean isLateral = Double.parseDouble(headerPattern.split(reader.nextLine())[correctColumn]) == 0;
+            // isLateral = false;
 
             // Read enabled channels.
             char[] rawChannels = headerPattern.split(reader.nextLine())[correctColumn].toCharArray();
